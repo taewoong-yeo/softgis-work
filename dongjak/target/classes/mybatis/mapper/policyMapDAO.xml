@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.policy.PolicyMapDAO">
+
+	<select id="getPolicy" resultType="hashmap">
+		/* dongjak.policy.PolicyMapDAO.getPolicy */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.ply_cat
+			   , a.ply_no
+			   , a.ply_nm
+			   , a.ply_idx
+			   , a.ply_stry
+			   , a.ply_ways
+		  FROM base.ply_mngr a
+		       , cte_code b
+		 WHERE a.ply_cat = b.cod_cd
+		   AND b.cod_nm = #{ply_cat}
+		   AND a.ply_nm = #{ply_nm}
+		   AND a.use_stat = 'Y';
+	</select>
+	
+	<sql id="getPolicyThematicsOrderBy">ORDER BY b.data_date ASC</sql>
+	
+	<select id="getPolicyThematics" resultType="hashmap">
+	 	/* dongjak.policy.PolicyMapDAO.getPolicyThematics */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.ply_no
+			   , c.ply_nm
+			   , a.thm_cd
+			   , a.thm_nm
+			   , a.thm_grp
+			   , a.thm_idx
+			   , a.thm_ways
+			   , a.thm_desc
+			   , a.thm_tbl
+			   , a.thm_fcly
+			   , a.thm_img
+			   , a.use_stat
+			   , a.opn_stat
+			   , d.cod_nm AS thm_fcly_nm
+			   , MAX(b.data_date) AS thm_upt_date
+			   , a.thm_img
+			   , a.att_file_no
+			   , fm.file_nm_local 
+			   , ARRAY_AGG(b.data_tbl <include refid="getPolicyThematicsOrderBy" />) AS thm_tbls
+			   , CASE WHEN a.thm_fcly = 'DCL_YEAR' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년' <include refid="getPolicyThematicsOrderBy" />)
+			   		  WHEN a.thm_fcly = 'DCL_HALF' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM b.data_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기' <include refid="getPolicyThematicsOrderBy" />)
+			   		  WHEN a.thm_fcly = 'DCL_QUART' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 Q분기') <include refid="getPolicyThematicsOrderBy" />)
+			   		  WHEN a.thm_fcly = 'DCL_MONTH' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월') <include refid="getPolicyThematicsOrderBy" />)
+			   		  WHEN a.thm_fcly = 'DCL_IRRE' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월 DD일') <include refid="getPolicyThematicsOrderBy" />)
+			   		  END AS thm_dates
+		  FROM base.ply_thm_mngr a
+		  LEFT OUTER JOIN base.file_mngr fm  ON fm.file_no = a.att_file_no 
+		  	   , base.ply_thm_tbl b
+		  	   , base.ply_mngr c
+		       , cte_code d
+		       , cte_code e
+		 WHERE 1 = 1
+		   AND a.thm_cd = b.thm_cd
+		   AND a.ply_no = c.ply_no
+		   AND a.thm_fcly = d.cod_cd
+		   AND c.ply_cat = e.cod_cd
+		   AND a.use_stat = 'Y'
+		   AND b.use_stat = 'Y'
+		   AND c.use_stat = 'Y'
+		   AND d.use_stat = 'Y'
+		   AND e.use_stat = 'Y'
+		   AND c.ply_nm = #{ply_nm}
+		   AND e.cod_nm = #{ply_cat}
+		 GROUP BY a.ply_no, a.thm_cd, c.ply_nm, c.ply_idx, d.cod_nm, e.cod_nm, e.cod_idx, fm.file_no
+		 ORDER BY e.cod_idx ASC, c.ply_idx ASC, a.thm_idx ASC, a.thm_grp ASC;
+	</select>
+
+	<select id="getPolicyMetadatas" resultType="hashmap">
+		/* dongjak.policy.PolicyMapDAO.getPolicyMetadatas */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT c.mta_cd
+			   , c.mta_nm
+			   , c.mta_fcly
+			   , b.pm_date
+			   , d.cod_nm AS mta_cat_nm 
+			   , CASE WHEN c.mta_fcly = 'DCL_YEAR' THEN EXTRACT(YEAR FROM b.pm_date::date) || '년'
+			   		  WHEN c.mta_fcly = 'DCL_HALF' THEN EXTRACT(YEAR FROM b.pm_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM b.pm_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기'
+			   		  WHEN c.mta_fcly = 'DCL_QUART' THEN TO_CHAR(b.pm_date::date, 'YYYY년 Q분기')
+			   		  WHEN c.mta_fcly = 'DCL_MONTH' THEN TO_CHAR(b.pm_date::date, 'YYYY년 MM월')
+			   		  WHEN c.mta_fcly = 'DCL_IRRE' THEN TO_CHAR(b.pm_date::date, 'YYYY년 MM월 DD일')
+			   		  END AS pm_date_cvt
+	 	  FROM base.ply_mngr a
+	 	  	   , base.ply_mta_mngr b
+	 	  	   , base.mta_data c
+	 	  	   , cte_code d
+	 	  	   , cte_code e
+	 	 WHERE a.ply_cat = e.cod_cd
+	 	   AND e.cod_nm = #{ply_cat}
+	 	   AND a.ply_nm = #{ply_nm}
+	 	   AND a.ply_no = b.ply_no 
+	 	   AND b.mta_cd = c.mta_cd
+	 	   AND c.mta_cat = d.cod_cd
+	 	   AND a.use_stat = 'Y'
+	 	   AND b.use_stat = 'Y'
+	 	   AND c.use_stat = 'Y'
+	 	   AND d.use_stat = 'Y'
+	 	 GROUP BY a.ply_no, b.ply_no, b.mta_cd, c.mta_cd, d.cod_nm
+	 	 ORDER BY b.pm_idx ASC;
+	</select>
+	
+	<select id="getPolicyGroups" resultType="hashmap">
+		/* dongjak.policy.PolicyMapDAO.getPolicyGroups */
+		SELECT
+			   cod_cd
+			   , cod_nm
+			   , cod_desc
+			   , cod_idx
+			   , img_url
+		  FROM base.com_code
+		 WHERE grp_cd = 'POLICY_MAP'
+		   AND use_stat = 'Y'
+		 ORDER BY cod_idx ASC;
+	</select>
+	
+	<select id="getPolicyCategories" resultType="hashmap">
+		/* dongjak.policy.PolicyMapDAO.getPolicyCategories */
+		SELECT
+			   a.ply_cat
+			   , a.ply_nm
+		  FROM base.ply_mngr a
+		  	   , base.com_code b
+		 WHERE a.ply_cat = b.cod_cd
+		   AND a.use_stat = 'Y'
+		   AND b.use_stat = 'Y'
+		 ORDER BY b.cod_idx ASC, a.ply_idx ASC;
+	</select>
+	
+	<select id="getPolicyMapChartData" resultType="hashmap">
+	 	/* dongjak.policy.PolicyMapDAO.getPolicyMapChartData */
+	 	SELECT
+	 		<foreach collection="vis_y" item="y" separator=", ">"${y}"</foreach>,
+	 		"${vis_x}"
+	 	  FROM policy_map."${data_tbl}"
+	 	 WHERE 
+	 		<foreach collection="vis_y" item="y" separator=" AND ">"${y}" IS NOT NULL</foreach>
+	 		AND "${vis_x}" IS NOT NULL
+	 	 ORDER BY "${vis_o}"
+	 	 LIMIT 100;
+	</select>
+	
+	<select id="getPolicyMapChartColumns" resultType="hashmap">
+	 	/* dongjak.policy.PolicyMapDAO.getPolicyMapChartColumns */
+	 	SELECT a.col_nm_org
+			 , COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+		  FROM (
+				SELECT PS.RELNAME AS tbl_nm
+					 , PA.ATTNAME AS col_nm_org
+					 , PD.DESCRIPTION AS col_nm_alias
+					 , ISC.UDT_NAME AS col_type
+					 , PA.ATTNUM AS col_idx
+				  FROM PG_STAT_ALL_TABLES PS
+					   <![CDATA[
+				       INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0 ]]>
+				       LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+				       LEFT JOIN INFORMATION_SCHEMA.COLUMNS ISC ON PS.SCHEMANAME = ISC.TABLE_SCHEMA AND ISC.TABLE_NAME = PS.RELNAME AND ISC.COLUMN_NAME = PA.ATTNAME
+				     --, INFORMATION_SCHEMA.COLUMNS ISC
+				 WHERE PS.SCHEMANAME = 'policy_map'
+					AND PS.RELNAME = #{data_tbl}
+					AND ISC.TABLE_NAME = PS.RELNAME
+					AND ISC.COLUMN_NAME = PA.ATTNAME
+		  ) a
+		  LEFT JOIN base.ply_thm_col b
+		  		 ON a.col_nm_org = b.col_nm_org
+		  		AND b.thm_cd = (
+					SELECT thm_cd
+					  FROM base.ply_thm_tbl
+					 WHERE data_tbl = #{data_tbl}
+			    )
+		  ORDER BY a.col_idx ASC;
+	</select>
+	
+	<select id="getPolicyMapCharts" resultType="hashmap">
+	 	/* dongjak.policy.PolicyMapDAO.getPolicyMapCharts */
+	 	SELECT vis_nm
+			 , vis_type
+			 , vis_desc
+			 , vis_x
+			 , vis_y
+			 , vis_o
+		  FROM base.ply_thm_vis
+		 WHERE 1 = 1
+		   AND use_stat = 'Y'
+		   AND thm_cd = (
+			   SELECT thm_cd 
+				 FROM base.ply_thm_tbl
+				WHERE data_tbl = #{data_tbl}
+		   )
+		 ORDER BY vis_idx;
+	</select>
+	
+</mapper>

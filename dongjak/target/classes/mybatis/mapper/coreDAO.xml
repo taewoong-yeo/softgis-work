@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.core.CoreDAO">
+	
+	<select id="getCodesForInterceptor" resultType="hashmap">
+		/* dongjak.core.CoreDAO.getCodesForInterceptor */
+		SELECT
+			a.cod_cd
+			, a.cod_nm
+			, a.grp_cd
+			, a.cod_idx
+		 FROM base.com_code a
+		      , base.com_gpcd b
+		 WHERE a.grp_cd = b.grp_cd
+		   AND a.use_stat = 'Y'
+		   AND b.use_stat = 'Y'
+	     ORDER BY a.cod_idx ASC
+	</select>
+	
+	<select id="getURLPathForInterceptor" resultType="hashmap">
+		/* dongjak.core.CoreDAO.getURLPathForInterceptor */
+		WITH RECURSIVE tr(url, url_lbl, url_prnt, url_maint, level) AS (
+			SELECT a.url, a.url_lbl, a.url_prnt, a.url_maint, 1 as level
+			  FROM base.url_mngr a
+			 WHERE a.url = #{__URL__}
+			UNION ALL
+			SELECT a.url, a.url_lbl, a.url_prnt, a.url_maint, tr.level + 1
+			  FROM base.url_mngr a
+			  JOIN tr ON a.url = tr.url_prnt 
+		)
+		SELECT *
+		  FROM tr
+		ORDER BY level DESC;
+	</select>
+	
+	<select id="getSmartURLPathForInterceptor" resultType="hashmap">
+		/* dongjak.core.CoreDAO.getSmartURLPathForInterceptor */
+		WITH RECURSIVE tr(url, url_lbl, url_prnt, url_maint, url_idx, level, path, grp) as (
+			SELECT a.url, a.url_lbl, a.url_prnt, a.url_maint, a.url_idx, 1 as level, '' || a.url_idx , a.url_prnt
+			  FROM base.url_mngr a
+			 WHERE a.url_grp ='UG_SMART'
+			   AND a.url_maint ='Y'
+			UNION ALL
+			SELECT a.url, a.url_lbl, a.url_prnt, a.url_maint, a.url_idx, tr.level + 1,tr.path || '' || a.url_idx, tr.grp
+			  FROM base.url_mngr a
+			  JOIN tr ON a.url_prnt = tr.url 
+		)
+		SELECT t.* 
+		     , CASE WHEN t.url = (SELECT url_prnt FROM base.url_mngr WHERE url = #{__URL__}) THEN 'Y' ELSE 'N' END prt_yn
+		  FROM tr t 
+		 WHERE (t.grp = #{__URL__} OR t.url_prnt = t.grp OR (t.level > 1 AND t.grp in (select url_prnt from base.url_mngr where url = t.url_prnt)))
+		   AND (t.grp in (SELECT grp FROM tr WHERE url = #{__URL__}))
+		ORDER BY t.path, level;
+	</select>
+		
+	
+	<select id="getTableExistence" resultType="boolean">
+		/* dongjak.core.CoreDAO.getTableExistence */
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables 
+			WHERE table_schema = #{schema_nm}
+			  AND table_name   = #{table_nm}
+		);
+	</select>
+	
+	<update id="createTextTable">
+		/* dongjak.core.CoreDAO.createTextTable */
+		CREATE TABLE "${schema_nm}"."${table_nm}" (
+			<foreach collection="rm_columns" item="column" separator=", ">
+				"${column}" varchar
+			</foreach>
+		);
+	</update>
+
+	<insert id="insertTextData" parameterType="hashmap">
+		/* dongjak.core.CoreDAO.insertTextData */
+		INSERT
+		  INTO "${schema_nm}"."${table_nm}" (
+			<foreach collection="rm_columns" item="column" separator=", ">
+			   "${column}"
+			</foreach>
+		  ) VALUES (
+			<foreach collection="datas" item="data" separator="), (">
+				<foreach collection="columns" item="column" separator=", ">
+					'${data.get(column)}'
+				</foreach>
+			</foreach>
+		  );
+	</insert>
+	
+	<update id="deleteTable">
+		/* dongjak.core.CoreDAO.deleteTable */
+		DROP TABLE IF EXISTS "${schema_nm}"."${table_nm}";
+	</update>
+	
+	<update id="updateImporterGeometryColumn">
+		/* dongjak.core.CoreDAO.updateImporterGeometryColumn */
+		ALTER TABLE "${schema_nm}"."${table_nm}" RENAME COLUMN the_geom TO geom;
+	</update>
+	
+	<update id="updateImporterCharacterField">
+		/* dongjak.core.CoreDAO.updateImporterCharacterField */
+		UPDATE "${schema_nm}"."${table_nm}"
+		   SET
+			<foreach collection="fields" item="field" separator=", ">
+				"${field}" = convert_from(convert_to("${field}", 'iso-8859-1'), 'utf-8')
+			</foreach>
+		 WHERE 1 = 1
+	</update>
+	
+</mapper>

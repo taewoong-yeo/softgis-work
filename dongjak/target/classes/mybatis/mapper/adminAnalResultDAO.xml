@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.analresult.AdminAnalResultDAO">
+	
+	<select id="getAnalResults" resultType="hashmap">
+	 	/* dongjak.admin.analresult.AdminAnalResultDAO.getAnalResults */
+		SELECT
+			a.anal_result_no
+			, a.anal_result_type
+			, a.anal_result_title
+			, a.anal_result_content
+			, b.file_nm_org
+			, b.file_nm_local
+			, b.file_nm_org || '(' || ROUND(b.file_size/1024/1024::NUMERIC, 1) || 'MB)' AS att_file_nm
+			, c.cod_nm AS anal_result_type_nm
+			, a.anal_date
+		FROM base.anal_result_mngr a
+		LEFT JOIN base.file_mngr b ON a.att_file_no = b.file_no
+		LEFT JOIN base.com_code c ON a.anal_result_type = c.cod_cd
+		WHERE a.anal_result_type = c.cod_cd
+		ORDER BY a.anal_result_no DESC;
+	</select>
+	
+	<select id="getAnalResult" resultType="hashmap">
+	 	/* dongjak.admin.notice.AdminAnalResultDAO.getAnalResult */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.anal_result_no
+			   , a.anal_result_type
+			   , a.anal_result_title
+			   , a.anal_result_content
+			   , a.att_file_no
+			   , b.file_nm_local as att_file_nm
+			   , c.cod_nm AS anal_result_type_nm
+			   , a.anal_date
+		  FROM ( base.anal_result_mngr a
+		  		 LEFT JOIN base.file_mngr b ON a.att_file_no = b.file_no )
+			   , cte_code c
+		 WHERE a.anal_result_type = c.cod_cd
+		   AND a.anal_result_no = #{anal_result_no}::integer
+	</select>
+	
+	<insert id="insertAnalResult" parameterType="hashmap">
+		/* dongjak.admin.analresult.AdminAnalResultDAO.insertAnalResult */
+		INSERT 
+		  INTO base.anal_result_mngr (
+			  anal_result_type 
+			, anal_result_title 
+			, anal_result_content 
+			, mak_date 
+			, mak_id 
+			, att_file_no 
+			, anal_date
+		  ) VALUES (
+		  	  #{anal_result_type}
+		  	, #{anal_result_title}
+		  	, #{anal_result_content}
+		  	, #{mak_date}
+			, #{mak_id}
+			, #{att_file_no}
+			, #{anal_date}
+		  )
+	</insert>
+	
+	<update id="updateAnalResult" parameterType="hashmap">
+		/* dongjak.admin.notice.AdminAnalResultDAO.updateAnalResult */
+		UPDATE 
+		       base.anal_result_mngr
+		   SET
+       		   anal_result_type = #{anal_result_type}
+			   , anal_result_title = #{anal_result_title}
+			   , anal_result_content = #{anal_result_content}
+		   <if test='att_file_no != null'>
+			   , att_file_no = #{att_file_no}::integer
+		   </if>
+			   , anal_date = #{anal_date}
+		 WHERE anal_result_no = #{anal_result_no}::integer
+	</update>
+	
+	<delete id="deleteAnalResult">
+		/* dongjak.admin.notice.AdminAnalResultDAO.deleteAnalResult */
+		DELETE 
+		  FROM base.anal_result_mngr 
+		 WHERE anal_result_no = #{anal_result_no}::integer
+	</delete>
+	
+	<update id="deleteAnalResultAttachment">
+		/* dongjak.admin.notice.AdminAnalResultDAO.deleteAnalResultAttachment */
+		UPDATE base.anal_result_mngr
+		   SET att_file_no = null
+		 WHERE anal_result_no = #{anal_result_no}::integer
+	</update>
+	
+</mapper>

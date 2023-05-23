@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.log.AdminLogDAO">
+	
+	<select id="getMainFunctionStatistics" resultType="hashmap">
+		/* dongjak.admin.log.AdminLogDAO.getMainFunctionStatistics */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT count(log_id), log_grp, log_date
+		  FROM (
+			SELECT
+				   a.log_id
+				   , z.cod_nm as log_grp
+				   , TO_CHAR(a.log_timestamp, 'YYYY-MM-DD') AS log_date
+			  FROM base.log_mngr a
+				   , base.url_mngr b
+				   , cte_code z
+			 WHERE a.log_id IS NOT null
+			   AND a.log_uri = b.url
+			   AND b.url_grp = z.cod_cd
+			   AND EXTRACT(DAY FROM (DATE_TRUNC('day', NOW()) - DATE_TRUNC('day', a.log_timestamp))) &lt; 7
+			 GROUP BY a.log_id, z.cod_nm, log_date
+		  ) a
+		 GROUP BY log_grp, log_date
+	</select>
+	
+	<select id="getAllFunctionStatistics" resultType="hashmap">
+		/* dongjak.admin.log.AdminLogDAO.getAllFunctionStatistics */
+		SELECT
+			   COUNT(b.url) AS count
+			   , b.url_lbl
+		  FROM base.log_mngr a
+			   , base.url_mngr b
+		 WHERE a.log_uri = b.url
+		   AND b.url_action = 'UA_PG'
+		 GROUP BY b.url, b.url_lbl
+		 ORDER BY count DESC
+	</select>
+	
+	<select id="getConnectionStatistics" resultType="hashmap">
+		/* dongjak.admin.log.AdminLogDAO.getConnectionStatistics */
+		SELECT COUNT(log_id) AS count, log_date
+		  FROM (
+			SELECT
+				   log_id
+				   , TO_CHAR(log_timestamp, 'YYYY-MM-DD') AS log_date
+			  FROM base.log_mngr
+			 WHERE log_id IS NOT NULL
+			   AND EXTRACT(DAY FROM (DATE_TRUNC('day', NOW()) - DATE_TRUNC('day', log_timestamp))) &lt; 31
+			 GROUP BY log_id, log_date
+		  ) a
+		GROUP BY log_date
+	</select>
+	
+	<select id="getDownloadStatistics" resultType="hashmap">
+		/* dongjak.admin.log.AdminLogDAO.getDownloadStatistics */
+		SELECT
+			   COUNT(b.url) AS count
+			   , b.url_lbl
+		  FROM base.log_mngr a
+			   , base.url_mngr b
+		 WHERE a.log_uri = b.url
+		   AND b.url_action = 'UA_DL'
+		 GROUP BY b.url, b.url_lbl
+	</select>
+	
+</mapper>

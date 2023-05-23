@@ -1,0 +1,1822 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.anal.AnalyzeMapDAO">
+	
+	<select id="getLayers" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getLayers */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+	 	<if test='b_category.equals("data_catalog")'>
+		 	SELECT a.mta_cd AS lyr_cd
+				   , a.mta_nm AS lyr_nm
+				   , a.mta_desc AS lyr_desc
+				   , a.mta_src AS lyr_src
+				   , a.mta_fcly AS lyr_fcly
+				   , a.mta_gther AS lyr_gther
+				   , a.mta_tbl AS lyr_tbl
+				   , a.mta_cat AS lyr_cat
+				   , c.cod_nm AS lyr_cat_nm
+				   , MAX(b.data_date) AS lyr_upt_date
+				   , 'data_catalog' AS lyr_scma
+			  FROM base.mta_data a
+				   , base.mta_data_tbl b
+			       , cte_code c
+			 WHERE 1 = 1
+			 	   AND a.mta_cd = b.mta_cd
+			       AND a.mta_cat = c.cod_cd
+			       AND a.mta_gther = 'DG_SHP'
+			       AND a.use_stat = 'Y'
+			       AND b.use_stat = 'Y'
+				   AND (a.mta_nm LIKE '%' || #{query} ||  '%' OR a.mta_src LIKE '%' || #{query} ||  '%')
+				   <if test='s_category != null'>AND a.mta_cat = #{s_category}</if>
+				   <if test='geo_category != null'>
+				   AND (a.mta_tbl LIKE '%' || #{geo_category} || '%'
+						<if test='geo_category.equals("grid_100m")'>OR a.mta_nm LIKE '%격자%'</if>
+						<if test='geo_category.equals("bsis_zone")'>OR a.mta_nm LIKE '%기초구역%'</if>
+						<if test='geo_category.equals("adm")'>OR a.mta_nm LIKE '%행정동%'</if>
+				   )
+				   </if>
+			 GROUP BY a.mta_cd, c.cod_nm
+			 ORDER BY a.mta_idx ASC;
+	 	</if>
+	 	<if test='b_category.equals("policy_map")'>
+		 	SELECT a.thm_cd AS lyr_cd
+				   , a.thm_nm AS lyr_nm
+				   , a.thm_tbl AS lyr_tbl
+				   , a.thm_fcly AS lyr_fcly
+				   , c.ply_cat AS lyr_cat
+				   , c.ply_nm AS lyr_pnm
+				   , d.cod_nm AS lyr_cat_nm
+				   , MAX(b.data_date) AS lyr_upt_date
+				   , 'policy_map' AS lyr_scma
+			  FROM base.ply_thm_mngr a
+				   , base.ply_thm_tbl b
+				   , base.ply_mngr c
+			  	   , cte_code d
+			 WHERE 1 = 1
+				   AND a.thm_cd = b.thm_cd
+				   AND a.ply_no = c.ply_no
+			       AND c.ply_cat = d.cod_cd
+				   AND a.use_stat = 'Y'
+				   AND b.use_stat = 'Y'
+				   AND c.use_stat = 'Y'
+				   AND d.use_stat = 'Y'
+				   AND a.thm_nm LIKE '%' || #{query} ||  '%'
+				   <if test='s_category != null'>AND c.ply_cat = #{s_category}</if>
+				   <if test='geo_category != null'>
+				   AND (a.thm_tbl LIKE '%' || #{geo_category} || '%'
+						<if test='geo_category.equals("grid_100m")'>OR a.thm_nm LIKE '%격자%'</if>
+						<if test='geo_category.equals("bsis_zone")'>OR a.thm_nm LIKE '%기초구역%'</if>
+						<if test='geo_category.equals("adm")'>OR a.thm_nm LIKE '%행정동%'</if>
+				   )
+				   </if>
+			 GROUP BY a.ply_no, a.thm_cd, c.ply_cat, c.ply_nm, c.ply_idx, d.cod_nm, d.cod_idx
+			 ORDER BY d.cod_idx ASC, c.ply_idx ASC, a.thm_idx ASC, a.thm_grp ASC;
+	 	</if>
+	</select>
+	
+	<sql id="getLayerOrderBy">ORDER BY b.data_date DESC</sql>
+	
+	<select id="getLayer" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getLayer */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+	 	<if test='schema.equals("data_catalog")'>
+		 	SELECT a.mta_cd AS lyr_cd
+				   , a.mta_nm AS lyr_nm
+				   , a.mta_desc AS lyr_desc
+				   , a.mta_src AS lyr_src
+				   , a.mta_fcly AS lyr_fcly
+				   , a.mta_gther AS lyr_gther
+				   , a.mta_tbl AS lyr_tbl
+				   , a.mta_cat AS lyr_cat
+				   , c.cod_nm AS lyr_cat_nm
+				   , MAX(b.data_date) AS lyr_upt_date
+				   , 'data_catalog' AS lyr_scma
+				   , ARRAY_AGG(b.data_tbl <include refid="getLayerOrderBy" />) AS lyr_tbls
+				   , CASE WHEN a.mta_fcly = 'DCL_YEAR' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년' <include refid="getLayerOrderBy" />)
+				   		  WHEN a.mta_fcly = 'DCL_HALF' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM b.data_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기' <include refid="getLayerOrderBy" />)
+				   		  WHEN a.mta_fcly = 'DCL_QUART' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 Q분기') <include refid="getLayerOrderBy" />)
+				   		  WHEN a.mta_fcly = 'DCL_MONTH' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월') <include refid="getLayerOrderBy" />)
+				   		  WHEN a.mta_fcly = 'DCL_IRRE' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월 DD일') <include refid="getLayerOrderBy" />)
+				   		  END AS lyr_dates
+			  FROM base.mta_data a
+				   , base.mta_data_tbl b
+			       , cte_code c
+			 WHERE 1 = 1
+				   AND a.mta_cd = #{code}
+			 	   AND a.mta_cd = b.mta_cd
+			       AND a.mta_cat = c.cod_cd
+			       AND a.use_stat = 'Y'
+			       AND b.use_stat = 'Y'
+			 GROUP BY a.mta_cd, c.cod_nm;
+	 	</if>
+	 	<if test='schema.equals("policy_map")'>
+		 	SELECT a.thm_cd AS lyr_cd
+				   , a.thm_nm AS lyr_nm
+				   , a.thm_tbl AS lyr_tbl
+				   , a.thm_fcly AS lyr_fcly
+				   , c.ply_cat AS lyr_cat
+				   , c.ply_nm AS lyr_pnm
+				   , d.cod_nm AS lyr_cat_nm
+				   , MAX(b.data_date) AS lyr_upt_date
+				   , 'policy_map' AS lyr_scma
+				   , ARRAY_AGG(b.data_tbl <include refid="getLayerOrderBy" />) AS lyr_tbls
+				   , CASE WHEN a.thm_fcly = 'DCL_YEAR' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년' <include refid="getLayerOrderBy" />)
+				   		  WHEN a.thm_fcly = 'DCL_HALF' THEN ARRAY_AGG(EXTRACT(YEAR FROM b.data_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM b.data_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기' <include refid="getLayerOrderBy" />)
+				   		  WHEN a.thm_fcly = 'DCL_QUART' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 Q분기') <include refid="getLayerOrderBy" />)
+				   		  WHEN a.thm_fcly = 'DCL_MONTH' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월') <include refid="getLayerOrderBy" />)
+				   		  WHEN a.thm_fcly = 'DCL_IRRE' THEN ARRAY_AGG(TO_CHAR(b.data_date::date, 'YYYY년 MM월 DD일') <include refid="getLayerOrderBy" />)
+				   		  END AS lyr_dates
+			  FROM base.ply_thm_mngr a
+				   , base.ply_thm_tbl b
+				   , base.ply_mngr c
+			  	   , cte_code d
+			 WHERE 1 = 1
+				   AND a.thm_cd = #{code}
+				   AND a.thm_cd = b.thm_cd
+				   AND a.ply_no = c.ply_no
+			       AND c.ply_cat = d.cod_cd
+				   AND a.use_stat = 'Y'
+				   AND b.use_stat = 'Y'
+				   AND c.use_stat = 'Y'
+				   AND d.use_stat = 'Y'
+			 GROUP BY a.ply_no, a.thm_cd, c.ply_cat, c.ply_nm, c.ply_idx, d.cod_nm, d.cod_idx;
+	 	</if>
+	</select>
+	
+	<select id="getList" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getList */
+	 	<if test='lyr_scma.equals("data_catalog") or lyr_scma.equals("policy_map")'>
+			SELECT *, ST_AsGeoJSON(ST_Transform(geom, 3857)) AS the_geom
+			  FROM "${lyr_scma}"."${lyr_tbl}"
+			 LIMIT ${take} OFFSET ${skip};
+	 	</if>
+	</select>
+	
+	<select id="getListTotal" resultType="int">
+	 	/* dongjak.anal.AnalyzeMapDAO.getListTotal */
+	 	<if test='lyr_scma.equals("data_catalog") or lyr_scma.equals("policy_map")'>
+			SELECT COUNT(*) as total
+			  FROM "${lyr_scma}"."${lyr_tbl}";
+	 	</if>
+	</select>
+	
+	<select id="getListColumns" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getListColumns */
+ 	<if test='lyr_scma.equals("data_catalog") or lyr_scma.equals("policy_map") or lyr_scma.equals("civil_data")'>
+ 	<![CDATA[
+ 		SELECT
+ 			a.col_nm_org
+ 			, COALESCE(a.col_nm_alias, a.col_nm_org) AS col_nm_alias
+		FROM (
+			SELECT
+				PA.ATTNAME AS col_nm_org
+				, PD.DESCRIPTION AS col_nm_alias
+				, PA.ATTNUM AS col_idx
+			FROM PG_STAT_ALL_TABLES PS
+			INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+			LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+			, INFORMATION_SCHEMA.COLUMNS ISC ]]>
+			WHERE PS.SCHEMANAME = #{lyr_scma}
+				AND PS.RELNAME = #{lyr_tbl}
+				AND ISC.TABLE_NAME = PS.RELNAME
+				AND ISC.COLUMN_NAME = PA.ATTNAME
+		) a
+		ORDER BY a.col_idx ASC;
+	 	</if>
+	</select>
+	
+	<select id="getChartData" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getChartData */
+	 	<if test='lyr_scma.equals("data_catalog") or lyr_scma.equals("policy_map")'>
+		 	SELECT
+		 		<foreach collection="vis_y" item="y" separator=", ">"${y}"</foreach>,
+		 		"${vis_x}"
+		 	  FROM "${lyr_scma}"."${lyr_tbl}"
+		 	 WHERE 
+		 		<foreach collection="vis_y" item="y" separator=" AND ">"${y}" IS NOT NULL</foreach>
+		 		AND "${vis_x}" IS NOT NULL
+		 	 ORDER BY "${vis_o}"
+		 	 LIMIT 100;
+	 	 </if>
+	</select>
+	
+	<select id="getChartColumns" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getChartColumns */
+ 	<if test='lyr_scma.equals("data_catalog") or lyr_scma.equals("policy_map")'>
+	 	<![CDATA[
+		 	SELECT
+		 		a.col_nm_org
+		 		, COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+	 		FROM (
+	 			SELECT
+	 				PS.RELNAME AS tbl_nm
+	 				, PA.ATTNAME AS col_nm_org
+	 				, PD.DESCRIPTION AS col_nm_alias
+	 				, ISC.UDT_NAME AS col_type
+	 				, PA.ATTNUM AS col_idx
+				FROM PG_STAT_ALL_TABLES PS
+				INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+				LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+				, INFORMATION_SCHEMA.COLUMNS ISC ]]>
+				WHERE PS.SCHEMANAME = #{lyr_scma}
+					AND PS.RELNAME = #{lyr_tbl}
+					AND ISC.TABLE_NAME = PS.RELNAME
+					AND ISC.COLUMN_NAME = PA.ATTNAME
+			) a
+		<if test='lyr_scma.equals("data_catalog")'>
+			LEFT JOIN base.mta_data_col b ON a.col_nm_org = b.col_nm_org AND b.mta_cd = (SELECT mta_cd FROM base.mta_data_tbl WHERE data_tbl = #{lyr_tbl})
+		</if>
+		<if test='lyr_scma.equals("policy_map")'>
+			LEFT JOIN base.ply_thm_col b ON a.col_nm_org = b.col_nm_org AND b.thm_cd = (SELECT thm_cd FROM base.ply_thm_tbl WHERE data_tbl = #{lyr_tbl})
+		</if>
+			ORDER BY a.col_idx ASC;
+	</if>
+	</select>
+	
+	<select id="getCharts" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getCharts */
+		<if test='lyr_scma.equals("data_catalog")'>
+		 	SELECT vis_nm
+				 , vis_type
+				 , vis_desc
+				 , vis_x
+				 , vis_y
+				 , vis_o
+			  FROM base.mta_data_vis
+			 WHERE 1 = 1
+			   AND use_stat = 'Y'
+			   AND mta_cd = (
+				   SELECT mta_cd
+					 FROM base.mta_data_tbl
+					WHERE data_tbl = #{lyr_tbl}
+			   )
+			 ORDER BY vis_idx;
+		</if>
+		<if test='lyr_scma.equals("policy_map")'>
+		 	SELECT vis_nm
+				 , vis_type
+				 , vis_desc
+				 , vis_x
+				 , vis_y
+				 , vis_o
+			  FROM base.ply_thm_vis
+			 WHERE 1 = 1
+			   AND use_stat = 'Y'
+			   AND thm_cd = (
+				   SELECT thm_cd 
+					 FROM base.ply_thm_tbl
+					WHERE data_tbl = #{lyr_tbl}
+			   )
+			 ORDER BY vis_idx;
+		</if>
+	</select>
+	
+	<select id="getCentroid" resultType="string">
+	 	/* dongjak.anal.AnalyzeMapDAO.getCentroid */
+		SELECT ST_AsGeoJSON(ST_Union(ST_PointOnSurface(ST_Transform(geom, 3857))))
+		  FROM "${lyr_scma}"."${lyr_tbl}";
+	</select>
+	
+	<select id="getBuffer" resultType="string">
+	 	/* dongjak.anal.AnalyzeMapDAO.getBuffer */
+		SELECT ST_AsGeoJSON(ST_Union(ST_Buffer(ST_Transform(geom, 3857), #{radius}::numeric)))
+		  FROM "${lyr_scma}"."${lyr_tbl}";
+	</select>
+	
+	<select id="getSmartGroups" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartGroups */
+		SELECT
+			   c.cod_cd
+			   , c.cod_nm
+			   , c.cod_desc
+			   , c.cod_idx
+			   , c.img_url
+		  FROM base.com_code c
+		     , base.url_mngr u
+		 WHERE c.grp_cd = 'ANAL_SMART_URL'
+		   AND c.use_stat = 'Y'
+		   AND c.cod_cd = u.url 
+		 ORDER BY c.cod_idx ASC;
+	</select>
+	 
+	<select id="getSmartBsYrMon" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartBsYrMon */
+		SELECT DISTINCT a.bs_yr_mon cod_cd
+			 , a.bs_yr_mon cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.rt_sales_ksic_l${gbn}_202200 a
+		</if>
+		ORDER BY a.bs_yr_mon desc;
+	</select>
+	 
+	<select id="getSmartArimaBsYrMon" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartArimaBsYrMon */
+		SELECT DISTINCT bs_yr_mon cod_cd
+			 , bs_yr_mon cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl}
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.arima_sales_202200
+		</if>
+		ORDER BY bs_yr_mon desc; 
+	</select>
+	
+	<select id="getSectorCntWrkrYyyy" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSectorCntWrkrYyyy */
+		SELECT DISTINCT a.bs_yr_mon cod_cd
+			 , a.bs_yr_mon cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.business_worker_202200 a
+		</if>
+		ORDER BY a.bs_yr_mon desc; 
+	</select>
+	
+	<select id="getResdYyyyMm" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getResdYyyyMm */
+		SELECT DISTINCT a.yyyymm cod_cd
+			 , a.yyyymm cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.pop_202200 a
+		</if>
+		ORDER BY a.yyyymm desc;
+	</select>
+	
+	<select id="getCrrncyYyyyMm" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getCrrncyYyyyMm */
+		SELECT DISTINCT a.yyyymm cod_cd
+			 , a.yyyymm cod_nm
+			 -- replace(a.yyyymm,'-','') 
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.sales_localcash_yss_202100 a
+		</if>
+		ORDER BY a.yyyymm desc;
+	</select>
+	
+	<select id="getFTrashYyyy" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getFTrashYyyy */
+		SELECT DISTINCT a.yyyy cod_cd
+			 , a.yyyy cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data."house_cat_pop_202000" a
+		</if>
+		ORDER BY a.yyyy desc;
+	</select>
+	
+	<select id="getNfTrashYyyy" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getNfTrashYyyy */
+		SELECT DISTINCT a.yyyy cod_cd
+			 , a.yyyy cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data."NSO_business_work_201900" a
+		</if>
+		ORDER BY a.yyyy desc;
+	</select>
+	
+	<select id="getResdCategory" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getResdCategory */
+		SELECT DISTINCT a.category cod_cd
+			 , a.category cod_nm
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.pop_202200 a
+		</if>
+		ORDER BY a.category; 
+	</select>
+	
+	<select id="getSmartSector" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartSector */
+		SELECT DISTINCT a.avg_worker cod_cd
+			 , a.avg_worker cod_nm
+			 ,CASE 
+			 	WHEN a.avg_worker like '0명%' THEN 0
+			 	WHEN a.avg_worker like '1명%' THEN 1
+			 	WHEN a.avg_worker like '5명%' THEN 2
+			 END
+		<if test="smart_tbl != null and smart_tbl != ''">
+		  FROM civil_data.${smart_tbl} a
+		</if>
+		<if test="smart_tbl == null or smart_tbl == ''">
+		  FROM civil_data.business_worker_202200 a
+		</if>
+		ORDER BY 
+		CASE 
+		 	WHEN a.avg_worker like '0명%' THEN 0
+		 	WHEN a.avg_worker like '1명%' THEN 1
+		 	WHEN a.avg_worker like '5명%' THEN 2
+		END ;
+	</select>
+	
+	<select id="getSmartSeriesGrp" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartSeriesGrp */
+		SELECT
+			   cod_cd
+			   , cod_nm
+			   , cod_desc
+			   , cod_idx
+		  FROM base.series_mngr
+		 WHERE grp_cd is null
+		   AND use_stat = 'Y'
+		 ORDER BY cod_idx ASC;
+	</select>
+	
+	<select id="getSmartSeries" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartSeries */
+		SELECT
+			   cod_cd
+			   , cod_nm
+			   , cod_desc
+			   , cod_idx
+			   , grp_cd
+		  FROM base.series_mngr
+		 WHERE use_stat = 'Y'
+		   AND grp_cd IS NOT NULL
+		   <if test='grp_cd != "ALL"'>
+		   AND grp_cd = #{grp_cd} 
+		   </if>
+		 ORDER BY grp_cd, cod_idx ASC;
+	</select>
+	
+	<select id="getSmartDong" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartDong */
+		SELECT
+			   cod_cd
+			   , cod_nm
+			   , cod_desc
+			   , cod_idx
+			   , img_url
+		  FROM base.com_code
+		 WHERE grp_cd = 'DONG'
+		   AND use_stat = 'Y'
+		 ORDER BY cod_nm ASC;
+	</select>
+	
+	<select id="getDongSales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getDongSales 행정동별 매출 추이(꺾은선) */
+		SELECT bs_yr_mon base_mon 
+		     , bs_yr_mon as name
+			 , nm_adm as "seriesName"
+		     , amt_sales::numeric as y 
+		  FROM <include refid="incDongSales" /> 
+	</select>
+	
+	<sql id="incDongSales">
+		(
+			SELECT *
+				 , (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(partition by nm_adm order by nm_adm , bs_yr_mon))
+				 /nullif(LAG(amt_sales::numeric, 12) OVER(partition by nm_adm order by nm_adm , bs_yr_mon), 0)*100 as rt_lastsales
+			FROM (
+				SELECT bs_yr_mon 
+					, nm_adm  
+					, SUM(amt_sales::numeric) AS amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  FROM civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  FROM civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				WHERE nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+				<if test='nm_adm != null'>
+				  AND cod_cd IN 
+					<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				 )
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				GROUP BY bs_yr_mon, nm_adm 
+				ORDER BY bs_yr_mon, nm_adm   ASC) x
+			ORDER BY nm_adm , bs_yr_mon  ASC) y
+			<if test='bs_yr_mon != null'>
+			  WHERE bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY nm_adm, bs_yr_mon
+	</sql>
+	
+	<select id="getDongSalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incDongSales" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_adm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+			and rt_lastsales is not null
+	)
+	select
+		(select (nm_adm) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank) limit 1) as amt_rank_top
+		, (select (nm_adm) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank) limit 1) as rt_rank_top
+		, (select (nm_adm) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank) limit 1) as amt_rank_low
+		, (select (nm_adm) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank) limit 1) as rt_rank_low
+	</select>
+	
+	
+	<select id="getSeriesGrpSales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSeriesGrpSales 대/중분류 업종별 매출 추이(꺾은선) */
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_ksic_l${gbn} as "seriesName"
+		     , amt_sales::numeric y
+		from <include refid="incSeriesGrpSales" /> 
+	</select>
+	
+	<sql id="incSeriesGrpSales">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon), 0)*100 as rt_lastsales
+			from (
+				select 
+					r.bs_yr_mon
+					,r.nm_ksic_l${gbn}
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				where r.nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+				<if test='nm_adm != null'>
+				  AND cod_cd IN 
+					<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				 )
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				group by r.bs_yr_mon, r.nm_ksic_l${gbn} 
+				order by r.bs_yr_mon, r.nm_ksic_l${gbn} asc
+			 ) x
+			order by nm_ksic_l${gbn}, bs_yr_mon asc) y
+			<if test='bs_yr_mon != null'>
+			  WHERE bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+  		 ORDER BY nm_ksic_l${gbn}, bs_yr_mon
+	</sql>
+	
+	<select id="getSeriesGrpSalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incSeriesGrpSales" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_ksic_l${gbn}
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+		    and rt_lastsales is not null
+	)
+	select
+		(select (nm_ksic_l${gbn}) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank) limit 1) as amt_rank_top
+		, (select (nm_ksic_l${gbn}) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank) limit 1) as rt_rank_top
+		, (select (nm_ksic_l${gbn}) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank) limit 1) as amt_rank_low
+		, (select (nm_ksic_l${gbn}) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank) limit 1) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SD${gbn}_S') as cod_desc1
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SD${gbn}_Y') as cod_desc2
+	</select>
+	
+	<select id="getDongSalesYoY" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getDongSalesYoY 행정동별 전년동기 매출 증감률(막대) */
+		<include refid="incDongSalesYoY" /> 
+	</select>
+	
+	<sql id="incDongSalesYoY">
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_adm as "seriesName"
+		     , 	trunc( case 
+				when rt_lastsales > 500 then null
+				else rt_lastsales 
+				end, 2) as y
+		  FROM (
+			SELECT *
+				 , (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(partition by nm_adm order by nm_adm , bs_yr_mon))
+				 /nullif(LAG(amt_sales::numeric, 12) OVER(partition by nm_adm order by nm_adm , bs_yr_mon), 0)*100 as rt_lastsales
+			FROM(
+				SELECT bs_yr_mon 
+					, nm_adm  
+					, SUM(amt_sales::numeric) AS amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  FROM civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  FROM civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				where r.nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+									<if test='nm_adm != null'>
+									  AND cod_cd IN 
+										<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+									</if>
+									)
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				GROUP BY bs_yr_mon, nm_adm 
+				ORDER BY bs_yr_mon, nm_adm   ASC) x
+			ORDER BY nm_adm , bs_yr_mon  ASC) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY nm_adm, bs_yr_mon
+	</sql>
+	
+	<select id="getSeriesGrpSalesYoY" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSeriesGrpSalesYoY 대/중분류 업종별 전년동기 매출 증감률(막대) - 정리예정 */
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_ksic_l${gbn} as "seriesName"
+		     , trunc( case 
+				when rt_lastsales > 500 then null
+				else rt_lastsales 
+				end,2) as y
+		from(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.bs_yr_mon
+					,r.nm_ksic_l${gbn}
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				where r.nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+									<if test='nm_adm != null'>
+									  AND cod_cd IN 
+										<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+									</if>
+									)
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				group by r.bs_yr_mon, r.nm_ksic_l${gbn} 
+				order by r.bs_yr_mon, r.nm_ksic_l${gbn} asc) x
+			order by nm_ksic_l${gbn}, bs_yr_mon asc) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY nm_ksic_l${gbn}, bs_yr_mon;
+	</select>
+	
+	<select id="getDongSalesMoM" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getDongSalesMoM 행정동별 전월 대비 매출 증감률(막대) */
+		select bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_adm as "seriesName"
+		     , trunc( case 
+				when rt_lastsales > 500 then null
+				else rt_lastsales 
+				end,2) as y
+		from <include refid="incDongSalesMoM" /> 
+	</select>
+	
+	<sql id="incDongSalesMoM">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 1) OVER(partition by nm_adm order by nm_adm , bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 1) OVER(partition by nm_adm order by nm_adm , bs_yr_mon), 0)*100 as rt_lastsales
+			from(
+				select 
+					bs_yr_mon 
+					,nm_adm  
+					,sum(amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				where r.nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+									<if test='nm_adm != null'>
+									  AND cod_cd IN 
+										<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+									</if>
+									)
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				group by bs_yr_mon, nm_adm 
+				order by bs_yr_mon, nm_adm   asc) x
+			order by nm_adm , bs_yr_mon  asc) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY nm_adm, bs_yr_mon
+	</sql>
+	
+	<select id="getDongSalesMoMRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incDongSalesMoM" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_adm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+			and rt_lastsales is not null
+	)
+	select
+		(select (nm_adm) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (nm_adm) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SD${gbn}_M') as cod_desc
+	</select>
+		
+	<select id="getSeriesGrpSalesMoM" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSeriesGrpSalesMoM 대/중분류 업종별 전월대비 매출 증감률(막대) */
+		
+		select bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_ksic_l${gbn} as "seriesName"
+		     , trunc( case 
+				when rt_lastsales > 500 then null
+				else rt_lastsales 
+				end,2) as y 
+		from <include refid="incSeriesGrpSalesMoM" /> 	
+	</select>
+	
+	<sql id="incSeriesGrpSalesMoM">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 1) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 1) OVER(partition by nm_ksic_l${gbn} order by nm_ksic_l${gbn}, bs_yr_mon), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.bs_yr_mon
+					,r.nm_ksic_l${gbn}
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l${gbn}_202200 r
+				</if>
+				   , base.series_mngr c1
+				where r.nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+									<if test='nm_adm != null'>
+									  AND cod_cd IN 
+										<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+									</if>
+									)
+				  AND c1.cod_cd = <if test='gbn == "1"'> r.cd_ksic_l1 </if> <if test='gbn == "2"'> substr(r.cd_ksic_l2,1,1) </if>
+				  AND c1.grp_cd is null 
+				  AND c1.use_stat = 'Y' 
+				<if test='series_grp != null and gbn == "2"'>
+				  AND c1.cod_cd IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series_grp != null and gbn == "1"'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null and gbn == "2"'>
+				  AND r.cd_ksic_l2 IN (SELECT c1.cod_cd || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				group by r.bs_yr_mon, r.nm_ksic_l${gbn} 
+				order by r.bs_yr_mon, r.nm_ksic_l${gbn} asc) x
+			order by nm_ksic_l${gbn}, bs_yr_mon  asc) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			 ORDER BY nm_ksic_l${gbn}, bs_yr_mon
+	</sql>
+	
+	<select id="getSeriesGrpSalesMoMRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incSeriesGrpSalesMoM" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_ksic_l${gbn}
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+			--and rt_lastsales is not null
+	)
+	select
+		(select (nm_ksic_l${gbn}) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (nm_ksic_l${gbn}) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SD${gbn}_M') as cod_desc
+	</select>
+	
+	<select id="getArimaDongSales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getArimaDongSales 행정동별 매출 추이(꺾은선) */
+		SELECT bs_yr_mon base_mon 
+		     , bs_yr_mon as name
+			 , nm_adm as "seriesName"
+		 <if test="page_type == 'ma'">
+	 	 	 , round(avg(amt_sales::numeric)over(partition by nm_adm order by bs_yr_mon rows between ${ma_month} preceding and current row ), 2) as y
+		 </if>
+		 <if test="page_type == 'arima'">
+		     , round(amt_sales::numeric, 2) as y
+		 </if>
+		  FROM <include refid="incArimaDongSales" />
+	</select>
+	
+	<sql id="incArimaDongSales">
+		 (
+			SELECT bs_yr_mon 
+				, nm_adm  
+				, SUM(amt_sales::numeric) AS amt_sales
+			<if test="smart_tbl != null and smart_tbl != ''">
+			  FROM civil_data.${smart_tbl}
+			</if>
+			<if test="smart_tbl == null or smart_tbl == ''">
+				<if test="page_type == 'arima'">
+			  		FROM civil_data.arima_sales_202200
+				</if>
+		  		FROM civil_data.rt_sales_ksic_l1_202200
+			</if>
+			WHERE nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+			<if test='nm_adm != null'>
+			  AND cod_cd IN 
+				<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			)
+			<if test='series_grp != null'>
+			  AND nm_ksic_l1 IN (SELECT cod_nm FROM base.series_mngr WHERE grp_cd is null AND use_stat = 'Y' AND cod_cd IN 
+				<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+			</if>
+			GROUP BY bs_yr_mon, nm_adm 
+			ORDER BY bs_yr_mon, nm_adm   ASC
+		) x
+		<if test='bs_yr_mon != null'>
+		  WHERE bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+		</if>
+		 ORDER BY nm_adm, bs_yr_mon
+	</sql>
+	
+	<select id="getArimaDongSalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incArimaDongSales" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_adm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+	)
+	select
+		(select (nm_adm) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (nm_adm) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SA_D') as cod_desc 
+	</select>
+	
+	<select id="getArimaSeriesGrpSales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getArimaSeriesGrpSales 대분류 업종별 매출 추이(꺾은선) */
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_ksic_l1 as "seriesName"
+		 <if test="page_type == 'ma'">
+	 	 	 , round(avg(amt_sales::numeric)over(partition by nm_ksic_l1 order by bs_yr_mon rows between ${ma_month} preceding and current row ), 2) as y
+		 </if>
+		 <if test="page_type == 'arima'">
+		     , round(amt_sales::numeric, 2) as y
+		 </if>
+		from <include refid="incArimaSeriesGrpSales" />
+	</select>
+	
+	<sql id="incArimaSeriesGrpSales">
+		(
+			select 
+				bs_yr_mon
+				,nm_ksic_l1
+				,sum(amt_sales::numeric) as amt_sales
+			<if test="smart_tbl != null and smart_tbl != ''">
+			  from civil_data.${smart_tbl}
+			</if>
+			<if test="smart_tbl == null or smart_tbl == ''">
+				<if test="page_type == 'arima'">
+			  		FROM civil_data.arima_sales_202200
+				</if>
+		  		FROM civil_data.rt_sales_ksic_l1_202200
+			</if>
+			where nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+			<if test='nm_adm != null'>
+			  AND cod_cd IN 
+				<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			)
+			<if test='series_grp != null'>
+			  AND nm_ksic_l1 IN (SELECT cod_nm FROM base.series_mngr WHERE grp_cd is null AND use_stat = 'Y' AND cod_cd IN 
+				<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+			</if>
+			group by bs_yr_mon, nm_ksic_l1 
+			order by bs_yr_mon, nm_ksic_l1 asc
+		 ) x
+		<if test='bs_yr_mon != null'>
+		  WHERE bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+		</if>
+		 ORDER BY nm_ksic_l1, bs_yr_mon
+	</sql>
+	
+	<select id="getArimaSeriesGrpSalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incArimaSeriesGrpSales" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, nm_ksic_l1
+			, amt_sales::numeric amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and amt_sales::numeric > 0
+	)
+	select
+		(select (nm_ksic_l1) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (nm_ksic_l1) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd =  'SA_G') as cod_desc
+	</select>
+	
+	<select id="getSmartCompTarget" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getSmartCompTarget */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+	 	SELECT a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_cat
+			   , MAX(b.data_date) AS mta_upt_date
+			   , c.cod_nm AS mta_fcly_nm
+		  FROM base.mta_data a
+			   , base.mta_data_tbl b
+		       , cte_code c
+		 WHERE a.mta_cd = b.mta_cd
+		   AND a.mta_fcly = c.cod_cd
+	       AND a.use_stat = 'Y'
+	       AND b.use_stat = 'Y'
+		   AND a.mta_fcly = 'DCL_HALF'
+		   AND a.mta_cd in ('pop_fe_adm','pop_tot_adm','pop_ma_adm')
+		 GROUP BY a.mta_cd, c.cod_nm
+		 ORDER BY a.mta_idx ASC;
+	</select>
+	
+	<select id="getSmartCompTbInfo" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getSmartCompTbInfo */
+	 	SELECT 
+				mta_cd
+				, data_tbl
+				, data_date
+				, use_stat
+	 	  FROM base.mta_data_tbl
+	 	 WHERE mta_cd = #{mta_cd}
+	 	   AND data_date = #{mta_upt_date}
+	</select>
+	
+	<select id="getSmartCompChartData" resultType="hashmap">
+	 	/* dongjak.anal.AnalyzeMapDAO.getSmartCompChartData */
+		SELECT adm_cd
+		     , adm_cd as "seriesName"
+			 , adm_nm as name
+		     , val as y 
+		  FROM data_catalog."${data_tbl}"
+		 ORDER BY adm_cd;
+	</select>
+	
+	<select id="getSectorCntWrkr" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSectorCntWrkr 업종분포*/
+		SELECT bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , "seriesName"
+		     , y
+		  FROM <include refid="incSectorCntWrkr" />
+	</select>
+	
+	<sql id="incSectorCntWrkr">
+		 (
+				SELECT w.bs_yr_mon 
+			 		, w.${seriesName} as "seriesName"
+			 	<if test='gbn.equals("1")'>
+					, SUM(count::numeric) AS y
+			 	</if>
+			 	<if test='gbn.equals("2")'>
+					, round((SUM(mon_income::numeric)/SUM(count::numeric)), 2) AS y
+			 	</if>
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  FROM civil_data.${smart_tbl} w
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  FROM civil_data.business_worker_202200 w
+				</if>
+				   , base.series_mngr s1
+				WHERE w.cd_ksic_l1 = s1.cod_cd
+				  AND s1.grp_cd is null 
+				  AND s1.use_stat = 'Y'
+				<if test='bs_yr_mon != null'>
+				  AND w.bs_yr_mon IN  
+				  	<foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='nm_adm != null'>
+				  AND w.cd_adm IN  
+				  	<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='series_grp != null'>
+				  AND w.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				<if test='sectors != null'>
+				  AND w.avg_worker IN 
+					<foreach collection="sectors" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				GROUP BY w.bs_yr_mon, w.${seriesName} 
+				ORDER BY w.bs_yr_mon, w.${seriesName}   ASC) x
+		 ORDER BY "seriesName", bs_yr_mon
+	</sql>
+	
+	<select id="getSectorCntWrkrRank" resultType="hashmap">
+	with t_result as (
+	select *
+	  from <include refid="incSectorCntWrkr" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, "seriesName" nm_ksic_l1
+			, y amt_sales
+			, RANK() OVER (ORDER BY y desc) as amt_rank_top
+		from t_result
+		where bs_yr_mon = (select max(bs_yr_mon) from t_result)
+			and y > 0
+	)
+	select
+		(select (nm_ksic_l1) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (nm_ksic_l1) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SS_C') as cod_desc1
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SS_W') as cod_desc2
+	</select> 
+	
+	<select id="getResdNmAdmCategory" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getResdNmAdmCategory */
+		SELECT p.*
+		  FROM <include refid="incResdNmAdm" />
+	</select>
+	
+	<sql id="incResdNmAdm">
+		 (
+			SELECT yyyymm
+			     , yyyymm as name
+			     , ${colNm} as "seriesName"
+			     , SUM(val::numeric) AS y
+			<if test="smart_tbl != null and smart_tbl != ''">
+			  FROM civil_data.${smart_tbl}
+			</if>
+			<if test="smart_tbl == null or smart_tbl == ''">
+			  FROM civil_data.pop_202200
+			</if>
+			WHERE adm_dr_nm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+					<if test='adm_dr_nm != null'>
+					  AND cod_cd IN 
+						<foreach collection="adm_dr_nm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+					</if>
+				)
+			<if test='yyyymm != null'>
+			  AND yyyymm IN  <foreach collection="yyyymm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			<if test='category != null'>
+			  AND category IN 
+				<foreach collection="category" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+			</if>
+			GROUP BY ${colNm}, yyyymm
+			ORDER BY ${colNm}, yyyymm
+		) p
+		ORDER BY "seriesName", yyyymm ASC
+	</sql>
+	
+	<select id="getResdNmAdmRank" resultType="hashmap">
+	with t_result as (
+	select *
+	  from <include refid="incResdNmAdm" /> 
+	), t_rank as (
+		select
+			yyyymm
+			, "seriesName" adm_dr_nm
+			, y amt_sales
+			, RANK() OVER (ORDER BY y desc) as amt_rank_top
+		from t_result
+		where yyyymm = (select max(yyyymm) from t_result)
+			and y > 0
+	)
+	select
+		(select (adm_dr_nm) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (adm_dr_nm) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = #{desc_cd}) as cod_desc
+	</select>
+	
+	<select id="getCrrncySales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getCrrncySales 매출 추이(꺾은선) */
+		SELECT yyyymm base_mon
+			 , yyyymm as name
+		     , amt_sales::numeric y
+		from <include refid="incCrrncySales" /> 
+	</select>
+	
+	<sql id="incCrrncySales">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(order by yyyymm))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(order by yyyymm), 0)*100 as rt_lastsales
+			from (
+				select 
+					r.yyyymm
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.sales_localcash_yss_202100 r
+				</if>
+				group by r.yyyymm
+				order by r.yyyymm asc
+			 ) x
+			order by yyyymm) y
+			<if test='bs_yr_mon != null'>
+			  WHERE yyyymm IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if>
+  		 ORDER BY yyyymm
+	</sql>
+	
+	<select id="getCrrncySalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incCrrncySales" /> 
+	), t_rank as (
+		select
+			yyyymm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	)
+	select
+		(select (yyyymm) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (yyyymm) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SC_S') as cod_desc
+	</select>
+	
+	<select id="getCrrncySalesYoY" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getCrrncySalesYoY  전년동기 매출 증감률(막대) */
+		SELECT yyyymm base_mon
+		     , yyyymm as name
+		     , trunc(rt_lastsales,2) as y
+		from <include refid="incCrrncySalesYoY" /> 
+	</select>
+	
+	<sql id="incCrrncySalesYoY">
+		(
+			select 
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(order by yyyymm))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(order by yyyymm), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.yyyymm
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.sales_localcash_yss_202100 r 
+				</if>
+				group by r.yyyymm 
+				order by r.yyyymm asc) x
+			order by yyyymm) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND yyyymm IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY yyyymm
+	</sql>
+	
+	<select id="getCrrncySalesYoYRank" resultType="hashmap">  
+	with t_result as ( 
+	select *
+	  from <include refid="incCrrncySalesYoY" /> 
+	), t_rank as (
+		select
+			yyyymm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	)
+	select
+		(select (yyyymm) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (yyyymm) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SC_Y') as cod_desc
+	</select>
+	
+	<select id="getCrrncySalesMoM" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getCrrncySalesMoM 전월대비 매출 증감률(막대) */
+		
+		select yyyymm base_mon
+		     , yyyymm as name
+		     , trunc(rt_lastsales,2) as y 
+		from <include refid="incCrrncySalesMoM" /> 	
+	</select>
+	
+	<sql id="incCrrncySalesMoM">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 1) OVER(order by yyyymm))
+			/nullif(LAG(amt_sales::numeric, 1) OVER(order by yyyymm), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.yyyymm
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.sales_localcash_yss_202100 r
+				</if>
+				group by r.yyyymm 
+				order by r.yyyymm asc) x
+			order by yyyymm asc) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND yyyymm IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			 ORDER BY yyyymm
+	</sql>
+	
+	<select id="getCrrncySalesMoMRank" resultType="hashmap"> 
+	/* dongjak.anal.AnalyzeMapDAO.getCrrncySalesMoMRank */		
+	with t_result as (
+	select *
+	  from <include refid="incCrrncySalesMoM" /> 
+	), t_rank as (
+		select
+			yyyymm
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	) 
+	select
+		(select (yyyymm) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (yyyymm) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'SC_M') as cod_desc
+	</select>
+	
+	<select id="getTrendSales" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getTrendSales 매출 추이(꺾은선) */
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , amt_sales::numeric y
+		from <include refid="incTrendSales" /> 
+	</select>
+	
+	<sql id="incTrendSales">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(order by bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(order by bs_yr_mon), 0)*100 as rt_lastsales
+			from (
+				select 
+					r.bs_yr_mon
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l2_202200 r
+				</if>
+				WHERE nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+								<if test='nm_adm != null'>
+								  AND cod_cd IN 
+									<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+								</if>
+					)
+				<if test='series_grp != null'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null'>
+				  AND r.cd_ksic_l2 IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> r.cd_ksic_l1 || #{map} </foreach> 
+				</if>
+				group by r.bs_yr_mon
+				order by r.bs_yr_mon asc
+			 ) x
+			order by bs_yr_mon) y
+			<if test='bs_yr_mon != null'>
+			  WHERE bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if>
+  		 ORDER BY bs_yr_mon
+	</sql>
+	
+	<select id="getTrendSalesRank" resultType="hashmap"> 
+	with t_result as (
+	select *
+	  from <include refid="incTrendSales" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY amt_sales::numeric desc) as amt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	)
+	select
+		(select (bs_yr_mon) from t_rank where amt_rank_top = (select min(amt_rank_top) from t_rank)) as amt_rank_top
+		, (select (bs_yr_mon) from t_rank where amt_rank_top = (select max(amt_rank_top) from t_rank)) as amt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'ST_S') as cod_desc
+	</select>
+	
+	<select id="getTrendSalesYoY" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getTrendSalesYoY  전년동기 매출 증감률(막대) */
+		SELECT bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , trunc(rt_lastsales,2) as y
+		from <include refid="incTrendSalesYoY" /> 
+	</select>
+	
+	<sql id="incTrendSalesYoY">
+		(
+			select 
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 12) OVER(order by bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 12) OVER(order by bs_yr_mon), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.bs_yr_mon
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l2_202200 r
+				</if>
+				WHERE nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+								<if test='nm_adm != null'>
+								  AND cod_cd IN 
+									<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+								</if>
+					)
+				<if test='series_grp != null'>
+				  AND r.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null'>
+				  AND r.cd_ksic_l2 IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> r.cd_ksic_l1 || #{map} </foreach> 
+				</if>
+				group by r.bs_yr_mon 
+				order by r.bs_yr_mon asc) x
+			order by bs_yr_mon) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+		 ORDER BY bs_yr_mon
+	</sql>
+	
+	<select id="getTrendSalesYoYRank" resultType="hashmap">  
+	with t_result as ( 
+	select *
+	  from <include refid="incTrendSalesYoY" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	)
+	select
+		(select (bs_yr_mon) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (bs_yr_mon) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'ST_Y') as cod_desc
+	</select>
+	
+	<select id="getTrendSalesMoM" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getTrendSalesMoM 전월대비 매출 증감률(막대) */
+		
+		select bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , trunc(rt_lastsales,2) as y 
+		from <include refid="incTrendSalesMoM" /> 	
+	</select>
+	
+	<sql id="incTrendSalesMoM">
+		(
+			select
+			*
+			, (amt_sales::numeric-LAG(amt_sales::numeric, 1) OVER(order by bs_yr_mon))
+			/nullif(LAG(amt_sales::numeric, 1) OVER(order by bs_yr_mon), 0)*100 as rt_lastsales
+			from(
+				select 
+					r.bs_yr_mon
+					,sum(r.amt_sales::numeric) as amt_sales
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  from civil_data.${smart_tbl} r
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  from civil_data.rt_sales_ksic_l2_202200 r
+				</if>
+				WHERE nm_adm in (SELECT cod_nm FROM base.com_code WHERE grp_cd='DONG' AND use_stat = 'Y'
+								<if test='nm_adm != null'>
+								  AND cod_cd IN 
+									<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+								</if>
+					)
+				<if test='series_grp != null'>
+				  AND r.cd_ksic_l1 IN
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if>
+				<if test='series != null'>
+				  AND r.cd_ksic_l2 IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> r.cd_ksic_l1 || #{map} </foreach> 
+				</if>
+				group by r.bs_yr_mon 
+				order by r.bs_yr_mon asc) x
+			order by bs_yr_mon asc) y
+			WHERE rt_lastsales IS NOT NULL
+			<if test='bs_yr_mon != null'>
+			  AND bs_yr_mon IN  <foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+			</if> 
+			 ORDER BY bs_yr_mon
+	</sql>
+	
+	<select id="getTrendSalesMoMRank" resultType="hashmap"> 
+	/* dongjak.anal.AnalyzeMapDAO.getTrendSalesMoMRank */		
+	with t_result as (
+	select *
+	  from <include refid="incTrendSalesMoM" /> 
+	), t_rank as (
+		select
+			bs_yr_mon
+			, amt_sales::numeric as amt_sales
+			, RANK() OVER (ORDER BY rt_lastsales desc) as rt_rank_top
+		from t_result
+		where amt_sales::numeric > 0
+	) 
+	select
+		(select (bs_yr_mon) from t_rank where rt_rank_top = (select min(rt_rank_top) from t_rank)) as rt_rank_top
+		, (select (bs_yr_mon) from t_rank where rt_rank_top = (select max(rt_rank_top) from t_rank)) as rt_rank_low
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = 'ST_M') as cod_desc
+	</select>
+	
+	<select id="getAnalsmartLatestTable" resultType="String">
+	/* dongjak.anal.AnalyzeMapDAO.getAnalsmartLatestTable */	
+	SELECT b.data_tbl
+		  FROM base.analsmart_data a
+		  	 , base.analsmart_data_tbl b
+		 WHERE a.mta_cd = b.mta_cd
+		   AND a.mta_cd = #{smart_key}
+		   AND a.use_stat = 'Y'
+		   AND b.use_stat = 'Y'
+		 ORDER BY b.data_date DESC
+   		 LIMIT 1;
+	</select>
+	
+	<select id="getAnalsmartGeoDatasValue" resultType="hashmap">
+	/* dongjak.anal.AnalyzeMapDAO.getAnalsmartGeoDatasValue */
+	SELECT max(p1.y) as maxy
+		, min(p1.y) as miny
+	  FROM (
+	  <include refid="getAnalsmartGeo" />
+	  <include refid="getAnalsmartGeoOrderBySkip" />
+	</select>
+	
+	<select id="getAnalsmartGeoDatas" resultType="hashmap">
+	/* dongjak.anal.AnalyzeMapDAO.getAnalsmartGeoDatas */
+	SELECT p1.name 
+	 , p1.base_mon 
+	 , p1."seriesName"
+	 , p1.y
+	 , ST_AsGeoJSON(ST_Transform(p2.geom, 3857))::json As geom
+	  FROM (
+	  <include refid="getAnalsmartGeo" />
+	  <include refid="getAnalsmartGeoOrderBy" />
+	</select>
+	  
+  	<sql id="getAnalsmartGeo">
+	  <if test='smart_key.equals("business_worker")'>
+		SELECT bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , "seriesName"
+		     , y
+		  FROM <include refid="incSectorCntWrkr" />
+	  </if>
+	  <if test='smart_key.equals("pop")'>
+		SELECT yyyymm base_mon
+		     , yyyymm as name
+		     , "seriesName" 
+		     , y
+		  FROM <include refid="incResdNmAdm" />
+	  </if>
+	  <if test='smart_key.equals("arima_sales")'>
+		SELECT bs_yr_mon base_mon 
+		     , bs_yr_mon as name
+			 , nm_adm as "seriesName"
+		     , amt_sales::numeric as y 
+		  FROM <include refid="incArimaDongSales" />
+	  </if>
+	  <if test='smart_key.equals("sales_localcash_yss")'>
+		SELECT yyyymm base_mon
+			 , yyyymm as name
+		     , amt_sales::numeric y
+		from <include refid="incCrrncySales" /> 
+	  </if>
+	  <if test='smart_key.equals("rt_sales_ksic_l1") or smart_key.equals("rt_sales_ksic_l2")'>
+	  	<if test='idx.equals("0")'>
+		SELECT bs_yr_mon base_mon 
+		     , bs_yr_mon as name
+			 , nm_adm as "seriesName"
+		     , amt_sales::numeric as y 
+		  FROM <include refid="incDongSales" />
+	  	</if>
+	  	<if test='idx.equals("1")'>
+	  		<include refid="incDongSalesYoY" />
+	  	</if>
+	  	<if test='idx.equals("2")'>
+		SELECT bs_yr_mon base_mon
+			 , bs_yr_mon as name
+		     , nm_adm as "seriesName"
+		     , trunc( case 
+				when rt_lastsales > 500 then null
+				else rt_lastsales 
+				end,2) as y
+		FROM <include refid="incDongSalesMoM" /> 
+	  	</if>
+	  </if> 
+	</sql>
+	
+	<sql id="getAnalsmartGeoOrderBy">
+	  	) p1
+	LEFT OUTER JOIN boundary.adm_dong_2019 AS p2
+				 ON p1."seriesName" = p2.adm_nm
+	ORDER BY p1.name
+	       , p2.adm_nm
+	       , p1."seriesName"
+	       --limit 100; --로컬개발시 성능이슈로인해 추가, 서버반영시없애야함
+	</sql>
+	
+	<sql id="getAnalsmartGeoOrderBySkip">
+	  	) p1
+	LEFT OUTER JOIN boundary.adm_dong_2019 AS p2
+				 ON p1."seriesName" = p2.adm_nm
+	       --limit 100; --로컬개발시 성능이슈로인해 추가, 서버반영시없애야함
+	</sql>
+	
+	<select id="getAnalsmartDesc" resultType="hashmap">
+	/* dongjak.anal.AnalyzeMapDAO.getAnalsmartDesc */	
+	SELECT *
+	  FROM base.analsmart_mngr
+	 WHERE use_stat = 'Y'
+	   AND analsmart_cat = #{analsmart_cat}
+	</select>
+	
+	<select id="getAnalsmartDataTblDates" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getAnalsmartDataTblDates */
+		SELECT b.data_tbl
+			, b.data_date
+		  FROM base.analsmart_data a
+		  	 , base.analsmart_data_tbl b
+		 WHERE a.mta_cd = b.mta_cd
+	 	   AND a.mta_cd = #{mta_cd}
+		   AND a.use_stat = 'Y'
+		   AND b.use_stat = 'Y'
+    	<if test='p_data_date != null and p_data_date != ""'>
+    	   AND b.data_date = #{p_data_date}
+    	</if>
+		 ORDER BY b.data_date DESC
+	</select>
+	
+	<select id="getSmartTrashFamilyHouse" resultType="hashmap">
+	/* dongjak.anal.AnalyzeMapDAO.getSmartTrashFamilyHouse */
+	SELECT w.yyyy as name
+	     , w.house_cnt as "단독주택"
+	     , w.apt_cnt as "아파트"
+	     , w.multi_cnt as "연립/다세대주택"
+	<if test="smart_tbl != null and smart_tbl != ''">
+	  FROM civil_data.${smart_tbl} w
+	</if>
+	<if test="smart_tbl == null or smart_tbl == ''">
+	  FROM civil_data.house_cat_pop_202000 w
+	</if>
+	<if test='yyyymm != null'>
+	  WHERE w.yyyy IN  
+	  	<foreach collection="yyyymm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+	</if> 
+	</select>
+	
+	<select id="getSmartTrashNonFamilyCnt" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartTrashNonFamilyCnt */
+		SELECT bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , "seriesName"
+		     , y
+		  FROM  (
+				SELECT w.yyyy bs_yr_mon 
+			 		, w.nm_adm as "seriesName" 
+					, SUM(w.cnt::numeric) AS y
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  FROM civil_data.${smart_tbl} w
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  FROM civil_data."NSO_business_work_201900" w
+				</if>
+				   , base.series_mngr s1
+				WHERE w.cd_ksic_l1 = s1.cod_cd
+				  AND s1.grp_cd is null 
+				  AND s1.use_stat = 'Y'
+				<if test='bs_yr_mon != null'>
+				  AND w.yyyy IN  
+				  	<foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='nm_adm != null'>
+				  AND w.cd_adm IN  
+				  	<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='series_grp != null'>
+				  AND w.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				<if test='series != null'>
+		  		  AND w.cd_ksic_l2 IN (SELECT w.cd_ksic_l1 || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				GROUP BY w.yyyy, w.nm_adm 
+				ORDER BY w.yyyy, w.nm_adm ASC) x
+		 ORDER BY "seriesName", bs_yr_mon
+	</select>
+	
+	<select id="getSmartTrashNonFamilyWrkr" resultType="hashmap">
+		/* dongjak.anal.AnalyzeMapDAO.getSmartTrashNonFamilyCnt */
+		SELECT bs_yr_mon base_mon
+		     , bs_yr_mon as name
+		     , "seriesName"
+		     , y
+		  FROM  (
+				SELECT w.yyyy bs_yr_mon 
+			 		, w.nm_adm as "seriesName" 
+					, SUM(w.workers::numeric) AS y
+				<if test="smart_tbl != null and smart_tbl != ''">
+				  FROM civil_data.${smart_tbl} w
+				</if>
+				<if test="smart_tbl == null or smart_tbl == ''">
+				  FROM civil_data."NSO_business_work_201900" w
+				</if>
+				   , base.series_mngr s1
+				WHERE w.cd_ksic_l1 = s1.cod_cd
+				  AND s1.grp_cd is null 
+				  AND s1.use_stat = 'Y'
+				<if test='bs_yr_mon != null'>
+				  AND w.yyyy IN  
+				  	<foreach collection="bs_yr_mon" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='nm_adm != null'>
+				  AND w.cd_adm IN  
+				  	<foreach collection="nm_adm" item="map" separator="," open="(" close=")"> #{map} </foreach>
+				</if> 
+				<if test='series_grp != null'>
+				  AND w.cd_ksic_l1 IN 
+					<foreach collection="series_grp" item="map" separator="," open="(" close=")"> #{map} </foreach> 
+				</if>
+				<if test='series != null'>
+		  		  AND w.cd_ksic_l2 IN (SELECT w.cd_ksic_l1 || cod_cd FROM base.series_mngr WHERE grp_cd is not null AND use_stat = 'Y' AND cod_cd IN 
+					<foreach collection="series" item="map" separator="," open="(" close=")"> #{map} </foreach> )
+				</if>
+				GROUP BY w.yyyy, w.nm_adm 
+				ORDER BY w.yyyy, w.nm_adm ASC) x
+		 ORDER BY "seriesName", bs_yr_mon
+	</select>
+	
+	<select id="getSmartDescInfo" resultType="hashmap">
+	select
+		(select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = #{cod_desc1}) as cod_desc1
+		<if test="cod_desc2 != null">
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = #{cod_desc2}) as cod_desc2
+		</if>
+		<if test="cod_desc3 != null">
+		, (select c.cod_desc from base.com_code c where c.grp_cd ='ANAL_SMART_DESC' and c.cod_cd = #{cod_desc3}) as cod_desc3
+		</if>
+	</select>
+</mapper>

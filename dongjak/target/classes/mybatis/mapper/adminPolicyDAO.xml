@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.policy.AdminPolicyDAO">
+	
+	<sql id="schemaName">policy_map</sql>
+	<sql id="schemaValue">'policy_map'</sql>
+	
+	<select id="getPolicies" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getPolicies */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.ply_cat
+			   , a.ply_no
+			   , a.ply_nm
+			   , a.ply_idx
+			   , a.ply_stry
+			   , a.ply_ways
+			   , a.use_stat
+			   , a.opn_stat
+			   , b.cod_nm AS ply_cat_nm
+		  FROM base.ply_mngr a
+		  	   , cte_code b
+		 WHERE a.ply_cat = b.cod_cd
+		 ORDER BY b.cod_idx ASC, a.ply_idx ASC
+	</select>
+	
+	<insert id="insertPolicy" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.insertPolicy */
+		INSERT
+		  INTO base.ply_mngr (
+			   ply_cat
+			   , ply_nm
+			   , ply_stry
+			   , ply_ways
+			   , use_stat
+			   , opn_stat
+			   , ply_idx
+		) VALUES (
+			   #{ply_cat}
+			   , #{ply_nm}
+			   , #{ply_stry}
+			   , #{ply_ways}
+			   , #{use_stat}
+			   , #{opn_stat}
+			   , 1 + COALESCE((SELECT MAX(ply_idx) FROM base.ply_mngr
+							   GROUP BY ply_cat HAVING ply_cat = #{ply_cat}), 0)
+		)
+	</insert>
+	
+	<update id="updatePolicy" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updatePolicy */
+		UPDATE
+			   base.ply_mngr
+		   SET
+			   ply_cat = #{ply_cat}
+			   , ply_nm = #{ply_nm}
+			   , ply_stry = #{ply_stry}
+			   , ply_ways = #{ply_ways}
+			   , use_stat = #{use_stat}
+			   , opn_stat = #{opn_stat}
+		 WHERE ply_no = #{ply_no}::INTEGER
+	</update>
+	
+	<update id="updatePolicyIndex" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updatePolicyIndex */
+		WITH src AS (
+						SELECT ply_no, ply_idx 
+						  FROM base.ply_mngr b 
+						 WHERE b.ply_no = #{ply_no}::INTEGER),
+		     dst AS (
+		     			SELECT ply_no, ply_idx 
+		     			  FROM base.ply_mngr c 
+		     			 WHERE c.ply_idx = #{ply_idx}::INTEGER
+		     			   AND c.ply_cat = #{ply_cat} LIMIT 1)
+		UPDATE base.ply_mngr a
+		   SET ply_idx = CASE WHEN a.ply_no = b.ply_no
+		   					  THEN #{ply_idx}::INTEGER ELSE b.ply_idx END
+		  FROM src b
+		 WHERE a.ply_no = b.ply_no
+		    OR a.ply_no = (SELECT ply_no FROM dst);
+	</update>
+	
+	<delete id="deletePolicy" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deletePolicy */
+		DELETE
+		  FROM base.ply_mngr
+		 WHERE ply_no = #{ply_no}::INTEGER
+	</delete>
+	
+	<select id="getThematics" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getThematics */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.ply_no
+			   , c.ply_nm
+			   , a.thm_cd
+			   , a.thm_nm
+			   , a.thm_grp
+			   , a.thm_idx
+			   , a.thm_ways
+			   , a.thm_desc
+			   , a.thm_tbl
+			   , a.thm_fcly
+			   , a.thm_dept
+			   , a.thm_remark
+			   , a.use_stat
+			   , a.opn_stat
+			   , a.att_file_no 
+			   , fm.file_nm_local 
+			   , d.cod_nm AS thm_fcly_nm
+			   , MAX(b.data_date) AS thm_upt_date
+		  FROM ( base.ply_thm_mngr a
+		  	     LEFT JOIN base.ply_thm_tbl b ON a.thm_cd = b.thm_cd 
+		  	     LEFT OUTER JOIN base.file_mngr fm ON a.att_file_no = fm.file_no)
+		  	   , base.ply_mngr c
+		       , cte_code d
+		       , cte_code e
+		 WHERE 1 = 1
+		   AND a.ply_no = c.ply_no
+		   AND a.thm_fcly = d.cod_cd
+		   AND c.ply_cat = e.cod_cd
+		 GROUP BY a.ply_no, a.thm_cd, c.ply_nm, c.ply_idx, d.cod_nm, e.cod_nm,e.cod_idx, fm.file_no 
+		 ORDER BY e.cod_idx ASC, c.ply_idx ASC, a.thm_idx ASC, a.thm_grp ASC;
+	</select>
+
+	<select id="checkThematicNameCollision" resultType="string">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkThematicNameCollision */
+		SELECT
+		       thm_cd
+		  FROM base.ply_thm_mngr
+		 WHERE 1 = 0
+		   <if test='ply_no != null and not ply_no.equals("") and thm_nm != null and not thm_nm.equals("")'>
+		   OR thm_nm != #{thm_nm_old}
+		   AND ply_no = #{ply_no}::INTEGER
+		   AND thm_nm = #{thm_nm}
+		   <if test='ply_no == ply_no_old'>
+		   AND thm_nm != #{thm_nm_old}
+		   </if>
+		   </if> 
+	</select>
+
+	<select id="checkThematicTableCollision" resultType="string">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkThematicTableCollision */
+		SELECT
+		       thm_cd
+		  FROM base.ply_thm_mngr
+		 WHERE thm_tbl = #{thm_tbl}
+		   AND thm_tbl != #{thm_tbl_old}
+	</select>
+
+	<insert id="insertThematic" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.insertThematic */
+		INSERT
+		  INTO base.ply_thm_mngr (
+		  	   ply_no
+			   , thm_cd
+			   , thm_nm
+			   , thm_grp
+			   , thm_ways
+			   , thm_desc
+			   , thm_tbl
+			   , thm_fcly
+			   , thm_dept
+			   , thm_remark
+			   , use_stat
+			   , opn_stat
+			   , thm_idx
+			   , att_file_no
+		  ) VALUES (
+		  	   #{ply_no}::INTEGER
+			   , #{thm_tbl}
+			   , #{thm_nm}
+			   , #{thm_grp}
+			   , #{thm_ways}
+			   , #{thm_desc}
+			   , #{thm_tbl}
+			   , #{thm_fcly}
+			   , #{thm_dept}
+			   , #{thm_remark}
+			   , #{use_stat}
+			   , #{opn_stat}
+			   , 1 + COALESCE((SELECT MAX(thm_idx) FROM base.ply_thm_mngr GROUP BY ply_no, thm_grp HAVING ply_no = #{ply_no}::INTEGER AND thm_grp = #{thm_grp}), 0)
+		  	   ,#{att_file_no}
+		  )
+	</insert>
+	
+	<update id="updateThematic" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateThematic */
+		UPDATE
+			   base.ply_thm_mngr
+		   SET
+		   	   ply_no = #{ply_no}::INTEGER
+			   , thm_nm = #{thm_nm}
+			   , thm_grp = #{thm_grp}
+			   , thm_ways = #{thm_ways}
+			   , thm_desc = #{thm_desc}
+			   , thm_dept = #{thm_dept}
+			   , thm_remark = #{thm_remark}
+			   , use_stat = #{use_stat}
+			   , opn_stat = #{opn_stat}
+			   , att_file_no = #{att_file}::INTEGER 
+		 WHERE thm_cd = #{thm_cd}
+	</update>
+	
+	<update id="updateThematicIndex" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateThematicIndex */
+		WITH src AS (
+						SELECT thm_cd, thm_idx 
+						  FROM base.ply_thm_mngr b 
+						 WHERE b.thm_cd = #{thm_cd}),
+		     dst AS (
+		     			SELECT thm_cd, thm_idx 
+		     			  FROM base.ply_thm_mngr c 
+		     			 WHERE c.thm_idx = #{thm_idx}::INTEGER
+		     			   AND c.ply_no = #{ply_no}::INTEGER
+		     			   AND c.thm_grp = #{thm_grp} LIMIT 1)
+		UPDATE base.ply_thm_mngr a
+		   SET thm_idx = CASE WHEN a.thm_cd = b.thm_cd
+		   					  THEN #{thm_idx}::INTEGER ELSE b.thm_idx END
+		  FROM src b
+		 WHERE a.thm_cd = b.thm_cd
+		    OR a.thm_cd = (SELECT thm_cd FROM dst);
+	</update>
+	
+	<delete id="deleteThematic" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deleteThematic */
+		DELETE
+		  FROM base.ply_thm_mngr
+		 WHERE thm_cd = #{thm_cd}
+	</delete>
+	
+	<select id="getDatas" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getDatas */
+	 	SELECT 
+				thm_cd
+				, data_tbl
+				, data_date
+				, use_stat
+	 	  FROM base.ply_thm_tbl
+	 	 WHERE thm_cd = #{thm_cd}
+	 	 ORDER BY data_date DESC
+	</select>
+	
+	<select id="checkDataIntegrated" resultType="boolean">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkDataIntegrated */
+		<![CDATA[
+		SELECT
+			(COUNT(DISTINCT col_count) <= 1) as integrated ]]>
+	  	FROM (
+	  		SELECT
+	  			c.col_nm_org
+	  			, COUNT(c.col_nm_org) as col_count
+  			FROM base.analsmart_data a
+  				, base.analsmart_data_tbl b
+  				, (
+  					SELECT
+  						PS.RELNAME AS tbl_nm
+  						, PA.ATTNAME AS col_nm_org
+  						, ISC.UDT_NAME AS col_type
+					FROM PG_STAT_ALL_TABLES PS
+						, PG_ATTRIBUTE PA
+						, INFORMATION_SCHEMA.COLUMNS ISC
+					WHERE PS.RELID = PA.ATTRELID
+						AND PA.ATTNUM > 0
+						AND PA.atttypid > 0
+						AND PS.SCHEMANAME = <include refid="schemaValue" />
+						AND ISC.TABLE_SCHEMA = PS.SCHEMANAME
+						AND ISC.TABLE_NAME = PS.RELNAME
+						AND ISC.COLUMN_NAME = PA.ATTNAME
+					ORDER BY PS.RELNAME
+				) c
+			WHERE a.mta_cd = #{mta_cd}
+				AND a.mta_cd = b.mta_cd
+				AND b.data_tbl = c.tbl_nm
+			GROUP BY c.col_nm_org, c.col_type
+		) a;
+	</select>
+
+	<insert id="insertData" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.insertData */
+		INSERT
+		  INTO base.ply_thm_tbl (
+			   thm_cd
+			   , data_tbl
+			   , data_date
+			   , use_stat
+		  ) VALUES (
+			   #{thm_cd}
+			   , #{data_tbl}
+			   , #{data_date}
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateData" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateData */
+		UPDATE
+			   base.ply_thm_tbl
+		   SET
+			   use_stat = #{use_stat}
+		 WHERE data_tbl = #{data_tbl}
+	</update>
+	
+	<delete id="deleteData" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deleteData */
+		DELETE
+		  FROM base.ply_thm_tbl
+		 WHERE data_tbl = #{data_tbl}
+	</delete>
+	
+	<select id="getDataColumns" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getDataColumns */
+	 	<![CDATA[
+		SELECT
+			a.col_nm_org
+			, COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+			, COALESCE(b.col_axis, '없음') AS col_axis
+			, a.col_type
+		FROM (
+			SELECT
+				PS.RELNAME AS tbl_nm
+				, PA.ATTNAME AS col_nm_org
+				, PD.DESCRIPTION AS col_nm_alias
+				, ISC.UDT_NAME AS col_type
+				, PA.ATTNUM AS col_idx
+			FROM PG_STAT_ALL_TABLES PS
+			INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+			LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+			, INFORMATION_SCHEMA.COLUMNS ISC ]]>
+			WHERE PS.SCHEMANAME = <include refid="schemaValue" />
+				AND PS.RELNAME = #{thm_tbl_latest}
+				AND ISC.TABLE_NAME = PS.RELNAME
+				AND ISC.COLUMN_NAME = PA.ATTNAME
+		) a
+		LEFT JOIN base.ply_thm_col b ON a.col_nm_org = b.col_nm_org AND b.thm_cd = #{thm_cd}
+		ORDER BY a.col_idx ASC;
+	</select>
+	
+	<select id="getDataDefinedColumns" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getDataDefinedColumns */
+	 	SELECT
+				col_nm_org
+				, col_nm_alias
+				, col_axis
+	 	  FROM base.ply_thm_col
+	 	 WHERE thm_cd = #{thm_cd}
+	 	   AND col_axis IS NOT NULL
+	</select>
+
+	<select id="checkDataColumnUsed" resultType="boolean">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkDataColumnUsed */
+	 	SELECT (COUNT(*) > 0)
+	 	  FROM base.ply_thm_vis
+	 	 WHERE thm_cd = #{thm_cd}
+	 	   AND (#{col_nm_org} = vis_x
+	 	    OR  #{col_nm_org} = ANY(vis_y));
+	</select>
+	
+	<insert id="updateDataColumn" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateDataColumn */
+		INSERT
+		  INTO base.ply_thm_col (
+				thm_cd
+				, col_nm_org
+				, col_nm_alias
+				, col_axis
+		  ) VALUES (
+		  		#{thm_cd}
+		  		, #{col_nm_org}
+		  		, NULLIF(#{col_nm_alias}, '')
+		  		, NULLIF(#{col_axis}, '')
+		  ) ON CONFLICT(thm_cd, col_nm_org)
+		  	DO UPDATE
+		  	   SET col_nm_alias = NULLIF(#{col_nm_alias}, '')
+		  	     , col_axis = NULLIF(#{col_axis}, '');
+	</insert>
+	
+	<update id="deleteDataColumn" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deleteDataColumn */
+		DELETE
+		  FROM base.ply_thm_col
+		 WHERE thm_cd = #{thm_cd}
+	</update>
+	
+	<select id="getVisualizes" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getVisualizes */
+	 	SELECT 
+	 		   thm_cd
+			   , vis_nm
+			   , vis_type
+			   , vis_desc
+			   , vis_x
+			   , ARRAY_TO_JSON(vis_y) AS vis_y
+			   , vis_o
+			   , vis_idx
+			   , use_stat
+	 	  FROM base.ply_thm_vis
+	 	 WHERE thm_cd = #{thm_cd}
+	 	 ORDER BY vis_idx ASC
+	</select>
+	
+	<select id="getVisualizePreview" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getVisualizePreview */
+	 	SELECT
+	 		<foreach collection="vis_y" item="y" separator=", ">"${y}"</foreach>,
+	 		"${vis_x}"
+	 	  FROM <include refid="schemaName" />."${thm_tbl_latest}"
+	 	 WHERE 
+	 		<foreach collection="vis_y" item="y" separator=" AND ">"${y}" IS NOT NULL</foreach>
+	 		AND "${vis_x}" IS NOT NULL
+	 	 ORDER BY "${vis_o}"
+	 	 LIMIT 100;
+	</select>
+
+	<select id="checkVisualizeCollision" resultType="string">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkVisualizeCollision */
+		SELECT
+		       vis_nm
+		  FROM base.ply_thm_vis
+		 WHERE thm_cd = #{thm_cd}
+		   AND vis_nm = #{vis_nm}
+		   AND vis_nm != #{vis_nm_old}
+	</select>
+
+	<insert id="insertVisualize" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.insertVisualize */
+		INSERT
+		  INTO base.ply_thm_vis (
+	 		   thm_cd
+			   , vis_nm
+			   , vis_type
+			   , vis_desc
+			   , vis_x
+			   , vis_y
+			   , vis_o
+			   , vis_idx
+			   , use_stat
+		  ) VALUES (
+			   #{thm_cd}
+			   , #{vis_nm}
+			   , #{vis_type}
+			   , #{vis_desc}
+			   , #{vis_x}
+			   , #{vis_y,typeHandler=dongjak.core.MyBatisArrayTypeHandler}
+			   , #{vis_o}
+			   , 1 + COALESCE((SELECT MAX(vis_idx) FROM base.ply_thm_vis
+							   GROUP BY thm_cd HAVING thm_cd = #{thm_cd}), 0)
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateVisualize" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateVisualize */
+		UPDATE
+			   base.ply_thm_vis
+		   SET
+			   vis_nm = #{vis_nm}
+			   , vis_type = #{vis_type}
+			   , vis_desc = #{vis_desc}
+			   , vis_x = #{vis_x}
+			   , vis_y = #{vis_y,typeHandler=dongjak.core.MyBatisArrayTypeHandler}
+			   , vis_o = #{vis_o}
+			   , use_stat = #{use_stat}
+		 WHERE vis_nm = #{vis_nm_old}
+	</update>
+
+	<update id="updateVisualizeIndex" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updateVisualizeIndex */
+		WITH src AS (
+						SELECT vis_nm, vis_idx 
+						  FROM base.ply_thm_vis b 
+						 WHERE b.vis_nm = #{vis_nm}),
+		     dst AS (
+		     			SELECT vis_nm, vis_idx 
+		     			  FROM base.ply_thm_vis c 
+		     			 WHERE c.vis_idx = #{vis_idx}::INTEGER
+		     			   AND c.thm_cd = #{thm_cd} limit 1)
+		UPDATE base.ply_thm_vis a
+		   SET vis_idx = CASE WHEN a.vis_nm = b.vis_nm
+		   					  THEN #{vis_idx}::INTEGER ELSE b.vis_idx END
+		  FROM src b
+		 WHERE a.vis_nm = b.vis_nm
+		    OR a.vis_nm = (SELECT vis_nm FROM dst);
+	</update>
+	
+	<delete id="deleteVisualize" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deleteVisualize */
+		DELETE
+		  FROM base.ply_thm_vis
+		 WHERE vis_nm = #{vis_nm}
+	</delete>
+	
+	<select id="getPolicyMetadatas" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getPolicyMetadatas */
+	 	SELECT 
+	 		   a.ply_no
+			   , a.mta_cd
+			   , b.mta_nm
+			   , a.pm_idx
+			   , a.pm_date
+			   , a.use_stat
+			   , ARRAY_AGG(c.data_date ORDER BY c.data_date DESC) as mta_dates
+	 	  FROM base.ply_mta_mngr a
+	 	  	   , base.mta_data b
+	 	  	   , base.mta_data_tbl c
+	 	 WHERE a.ply_no = #{ply_no}::INTEGER
+	 	   AND a.mta_cd = b.mta_cd 
+	 	   AND a.mta_cd = c.mta_cd
+	 	 GROUP BY a.ply_no, a.mta_cd, b.mta_cd, c.mta_cd
+	 	 ORDER BY a.pm_idx ASC
+	</select>
+	
+	<select id="getPolicyAvailableMetadatas" resultType="hashmap">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.getPolicyAvailableMetadatas */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , a.mta_tbl
+			   , a.mta_cat
+			   , c.cod_nm AS mta_fcly_nm
+			   , b.cod_nm AS mta_cat_nm
+			   , MAX(d.data_date) AS mta_upt_date
+			   , a.use_stat
+		  FROM base.mta_data a
+		  	   , base.mta_data_tbl d
+		       , cte_code b
+		       , cte_code c
+		 WHERE 1 = 1
+		   AND a.mta_cat = b.cod_cd
+		   AND a.mta_fcly = c.cod_cd
+		   AND a.mta_cd = d.mta_cd
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm
+		 ORDER BY a.mta_idx ASC;
+	</select>
+
+	<select id="checkPolicyMetadataCollision" resultType="boolean">
+	 	/* dongjak.admin.policy.AdminPolicyDAO.checkPolicyMetadataCollision */	 	
+	 	SELECT (COUNT(*) > 0)
+	 	  FROM base.ply_mta_mngr
+	 	 WHERE ply_no = #{ply_no}::INTEGER
+		   AND mta_cd = #{mta_cd};
+	</select>
+
+	<insert id="insertPolicyMetadata" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.insertPolicyMetadata */
+		INSERT
+		  INTO base.ply_mta_mngr (
+	 		   ply_no
+			   , mta_cd
+			   , pm_date
+			   , use_stat
+			   , pm_idx
+		  ) VALUES (
+			   #{ply_no}::INTEGER
+			   , #{mta_cd}
+			   , #{mta_upt_date}
+			   , #{use_stat}
+			   , 1 + COALESCE((SELECT MAX(pm_idx) FROM base.ply_mta_mngr
+							   GROUP BY ply_no HAVING ply_no = #{ply_no}::INTEGER), 0)
+		  )
+	</insert>
+	
+	<update id="updatePolicyMetadata" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updatePolicyMetadata */
+		UPDATE
+			   base.ply_mta_mngr
+		   SET
+			   pm_date = #{pm_date}
+			   , use_stat = #{use_stat}
+		 WHERE ply_no = #{ply_no}::INTEGER
+		   AND mta_cd = #{mta_cd}
+	</update>
+
+	<update id="updatePolicyMetadataIndex" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.updatePolicyMetadataIndex */
+		WITH src AS (
+						SELECT mta_cd, pm_idx
+						  FROM base.ply_mta_mngr b 
+						 WHERE b.mta_cd = #{mta_cd}
+		     			   AND b.ply_no = #{ply_no}::INTEGER),
+		     dst AS (
+		     			SELECT mta_cd, pm_idx 
+		     			  FROM base.ply_mta_mngr c 
+		     			 WHERE c.pm_idx = #{pm_idx}::INTEGER
+		     			   AND c.ply_no = #{ply_no}::INTEGER LIMIT 1)
+		UPDATE base.ply_mta_mngr a
+		   SET pm_idx = CASE WHEN a.mta_cd = b.mta_cd
+		   					 THEN #{pm_idx}::INTEGER ELSE b.pm_idx END
+		  FROM src b
+		 WHERE a.mta_cd = b.mta_cd
+		    OR a.mta_cd = (SELECT mta_cd FROM dst);
+	</update>
+	
+	<delete id="deletePolicyMetadata" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deletePolicyMetadata */
+		DELETE
+		  FROM base.ply_mta_mngr
+		 WHERE ply_no = #{ply_no}::INTEGER
+		   AND mta_cd = #{mta_cd}
+	</delete>
+	
+</mapper>

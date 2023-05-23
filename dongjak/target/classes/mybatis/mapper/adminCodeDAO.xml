@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.code.AdminCodeDAO">
+	
+	<select id="getGroupCodes" resultType="hashmap">
+	 	/* dongjak.admin.gpcd.AdminGpcdDAO.getGroupCodes */
+		SELECT * 
+		  FROM base.com_gpcd
+		 ORDER BY grp_cd ASC
+	</select>
+	
+	<select id="checkGroupCodeCollision" resultType="string">
+	 	/* dongjak.admin.gpcd.AdminGpcdDAO.checkGroupCodeCollision */
+		SELECT 
+			   grp_cd
+   		  FROM base.com_gpcd
+		 WHERE grp_cd = #{grp_cd}
+ 		   AND grp_cd != #{grp_cd_old}
+	</select>
+	
+	<select id="checkGroupCodeNameCollision" resultType="string">
+	 	/* dongjak.admin.gpcd.AdminGpcdDAO.checkGroupCodeNameCollision */
+		SELECT 
+			   grp_nm
+   		  FROM base.com_gpcd
+		 WHERE grp_nm = #{grp_nm}
+ 		   AND grp_nm != #{grp_nm_old}
+	</select>
+	
+	<insert id="insertGroupCode">
+		/* dongjak.admin.gpcd.AdminGpcd.DAO.insertGroupCode*/
+		INSERT
+		  INTO base.com_gpcd (
+		  	   grp_cd
+		  	   , grp_nm
+		  	   , grp_desc
+		  	   , use_stat	  	   		  	   
+		) VALUES (
+				#{grp_cd}
+				, #{grp_nm}				
+				, #{grp_desc}
+				, #{use_stat}								
+		)
+	</insert>
+	
+	<update id="updateGroupCode">
+		/* dongjak.admin.data.AdminGpcdDAO.updateGroupCode */
+		UPDATE
+			   base.com_gpcd
+		   SET
+			   grp_cd = #{grp_cd}
+			   , grp_nm = #{grp_nm}
+			   , grp_desc = #{grp_desc}
+			   , use_stat = #{use_stat}
+		 WHERE grp_cd = #{grp_cd}
+	</update>
+	
+	<delete id="deleteGroupCode">
+		/* dongjak.admin.data.AdminGpcdDAO.deleteGroupCode */
+		DELETE
+		  FROM base.com_gpcd
+		 WHERE grp_cd = #{grp_cd}
+	</delete>
+	
+	<delete id="deleteGroupCodeChain">
+		/* dongjak.admin.data.AdminGpcdDAO.deleteGroupCodeChain */
+		DELETE
+		  FROM base.com_code
+		 WHERE grp_cd = #{grp_cd}
+	</delete>
+	
+	<select id="getCommonCodes" resultType="hashmap">
+	 	/* dongjak.admin.codcd.AdminCodcdDAO.getCommonCodes */
+		SELECT * 
+		  FROM base.com_code
+		 ORDER BY grp_cd ASC, cod_idx ASC
+	</select>
+	
+	<select id="checkCommonCodeCollision" resultType="string">
+	 	/* dongjak.admin.codcd.AdminCodcdDAO.checkCommonCodeCollision */
+		SELECT 
+			   cod_cd
+   		  FROM base.com_code
+		 WHERE cod_cd = #{cod_cd}
+ 		   AND cod_cd != #{cod_cd_old}
+	</select>
+	
+	<select id="checkCommonCodeNameCollision" resultType="string">
+	 	/* dongjak.admin.codcd.AdminCodcdDAO.checkCommonCodeNameCollision */
+		SELECT 
+			   cod_nm
+   		  FROM base.com_code
+		 WHERE cod_nm = #{cod_nm}
+ 		   AND cod_nm != #{cod_nm_old}
+	</select>
+	
+	<insert id="insertCommonCode">
+		/* dongjak.admin.codcd.AdminCodcdDAO.insertCommonCode*/
+		INSERT
+		  INTO base.com_code (
+		  	   grp_cd
+		  	   , cod_cd
+		  	   , cod_nm
+		  	   , cod_desc
+		  	   , cod_idx
+		  	   , use_stat
+		  	   , img_url 	   		  	   
+		) VALUES (
+				#{grp_cd}
+				, #{cod_cd}				
+				, #{cod_nm}
+				, #{cod_desc}
+				, 1 + COALESCE((SELECT MAX(cod_idx) FROM base.com_code
+								GROUP BY grp_cd HAVING grp_cd = #{grp_cd}), 0)
+				, #{use_stat}
+				, #{img_url}								
+		)
+	</insert>
+	
+	<update id="updateCommonCode">
+		/* dongjak.admin.codcd.AdminCodcdDAO.updateCommonCode */
+		UPDATE
+			   base.com_code
+		   SET
+			   grp_cd = #{grp_cd}
+			   , cod_nm = #{cod_nm}
+			   , cod_desc = #{cod_desc}
+			   , use_stat = #{use_stat}
+			   , img_url = #{img_url}
+		 WHERE cod_cd = #{cod_cd}
+	</update>
+
+	<update id="updateCommonCodeIndex">
+		/* dongjak.admin.codcd.AdminCodcdDAO.updateCommonCodeIndex */
+		WITH src AS (
+						SELECT cod_cd, cod_idx 
+						  FROM base.com_code b 
+						 WHERE b.cod_cd = #{cod_cd} 
+						   AND b.grp_cd = #{grp_cd}),
+		     dst AS (
+		     			SELECT cod_cd, cod_idx 
+		     			  FROM base.com_code c 
+		     			 WHERE c.cod_idx = #{cod_idx}::INTEGER
+		     			   AND c.grp_cd = #{grp_cd} limit 1)
+		UPDATE base.com_code a
+		   SET cod_idx = CASE WHEN a.cod_cd = b.cod_cd 
+		   					  THEN #{cod_idx}::INTEGER ELSE b.cod_idx END
+		  FROM src b
+		 WHERE a.cod_cd = b.cod_cd
+		    OR a.cod_cd = (SELECT cod_cd FROM dst);
+	</update>
+	
+	<delete id="deleteCommonCode">
+		/* dongjak.admin.codcd.AdminCodcdDAO.deleteCommonCode */
+		DELETE
+		  FROM base.com_code
+		 WHERE cod_cd = #{cod_cd}
+	</delete>
+	
+</mapper>

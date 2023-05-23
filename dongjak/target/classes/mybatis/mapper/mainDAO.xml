@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.main.MainDAO">
+	
+	<select id="getDataCatlog" resultType="hashmap">
+		/* dongjak.main.MainDAO.getDataCatlog */
+		SELECT
+			a.cod_cd, a.cod_nm, a.cod_desc, a.cod_idx, a.img_url
+			, COUNT(*) FILTER (WHERE b.use_stat = 'Y') AS data_cnt
+		FROM base.com_code a
+		LEFT OUTER JOIN (
+			SELECT distinct m.mta_cd, m.mta_cat, m.use_stat
+			  FROM base.mta_data m
+			      , base.mta_data_tbl d
+			 WHERE m.mta_cd = d.mta_cd
+		       AND d.use_stat = 'Y'
+		  ) b
+		  ON a.cod_cd = b.mta_cat
+		WHERE a.grp_cd = 'DATA_CATLOG'
+		  AND a.use_stat = 'Y'
+		GROUP BY GROUPING SETS  ((a.cod_cd, a.cod_nm, a.cod_desc, a.cod_idx, a.img_url),())
+		ORDER BY a.cod_idx ASC nulls first;
+	</select>
+	
+	<select id="getDashboard" resultType="hashmap">
+		/* dongjak.main.MainDAO.getDashboard */
+		SELECT
+			a.cod_cd, a.cod_nm, a.cod_desc, a.cod_idx, a.img_url
+		FROM base.com_code a
+		LEFT OUTER JOIN base.mta_data b ON a.cod_cd = b.mta_cat
+		LEFT OUTER JOIN base.mta_data_tbl c ON b.mta_cd = c.mta_cd
+		WHERE a.grp_cd = 'DASHBOARD'
+			AND a.use_stat = 'Y'
+		GROUP BY a.cod_cd, a.cod_nm, a.cod_desc, a.cod_idx, a.img_url
+		ORDER BY a.cod_idx;
+	</select>
+	
+	<select id="getAdmDong" resultType="string">
+		/* dongjak.main.MainDAO.getAdmDong */
+		SELECT JSONB_BUILD_OBJECT(
+			'type', 'FeatureCollection',
+			'features', JSONB_AGG(features.feature)
+		) FROM (
+			SELECT JSONB_BUILD_OBJECT(
+				'type', 'Feature',
+				'geometry', ST_AsGeoJSON(ST_Transform(geom, 3857), 2)::jsonb,
+				'properties', TO_JSONB(inputs) - 'id' - 'geom'
+			) AS feature
+			FROM (
+				SELECT *
+				FROM boundary.adm_dong_2019
+			) inputs
+		) features
+	</select>
+	
+	<select id="getEmdDong" resultType="string">
+		/* dongjak.main.MainDAO.getEmdDong */
+		SELECT JSONB_BUILD_OBJECT(
+			'type', 'FeatureCollection',
+			'features', JSONB_AGG(features.feature)
+		) FROM (
+			SELECT JSONB_BUILD_OBJECT(
+				'type', 'Feature',
+				'geometry', ST_AsGeoJSON(ST_Transform(geom, 3857), 2)::jsonb,
+				'properties', TO_JSONB(inputs) - 'id' - 'geom'
+			) AS feature
+			FROM (
+				SELECT *
+				FROM boundary.emd_20210810
+			) inputs
+		) features
+	</select>	
+	
+	<select id="getPopup" resultType="hashmap">
+		/* dongjak.main.MainDAO.getPopup */
+		SELECT noti_no
+			   , noti_title
+		       , CONVERT_FROM(img_blob, 'utf-8') AS img_blob
+		  FROM base.noti_mngr
+		 WHERE noti_type = 'POP'
+		   AND (post_term = 0 OR (post_date::date + post_term) > NOW())
+	</select>
+	
+	<select id="getNoticeList" resultType="hashmap">
+		/* dongjak.main.MainDAO.getNoticeList */
+		SELECT * 
+		  FROM (SELECT * 
+				  FROM base.noti_mngr
+				  WHERE noti_type IN('GNR','FIX')) a
+		  WHERE noti_type = 'FIX'
+		  <choose>
+		  	<when test="searchOption == 'title'">
+		    OR noti_title LIKE '%${search_keyword}%'
+		  	</when>
+		  	<when test="searchOption == 'content'">
+		    OR noti_content LIKE '%${search_keyword}%'
+		  	</when>
+		  	<otherwise>
+		    OR noti_title LIKE '%${search_keyword}%'
+   		    OR noti_content LIKE '%${search_keyword}%'
+		  	</otherwise>
+		  </choose>
+	  ORDER BY (CASE WHEN noti_type = 'FIX' THEN 1 ELSE 2 END ) ASC
+	  		   ,noti_no ASC
+	</select>
+	
+	<select id="getNoticeDetail" resultType="hashmap">
+		/* dongjak.main.MainDAO.getNoticeDetail */
+		SELECT *, b.file_nm_org, b.file_nm_local
+		  FROM base.noti_mngr a LEFT JOIN base.file_mngr b 
+		    ON a.att_file_no = b.file_no 
+		 WHERE noti_no = ${noti_no}
+	</select>
+	
+	<select id="getMainNoticeList" resultType="hashmap">
+		/* dongjak.main.MainDAO.getMainNoticeList */
+		SELECT * 
+		FROM base.noti_mngr
+		WHERE noti_type = 'GNR'
+		ORDER BY (CASE WHEN noti_type = 'FIX' THEN 1 ELSE 2 END ) ASC, noti_no DESC
+		LIMIT 5
+	</select>
+	
+	<select id="getAnalResultList" resultType="hashmap">
+		/* dongjak.main.MainDAO.getAnalResultList */
+		SELECT
+			a.anal_result_no
+			, a.anal_result_type
+			, b.cod_nm AS anal_result_type_nm
+			, a.anal_result_title
+			, a.anal_result_content
+			, a.anal_date
+			, a.mak_date
+			, a.mak_id
+			, a.att_file_no
+		FROM base.anal_result_mngr a
+		LEFT OUTER JOIN base.com_code b ON a.anal_result_type = b.cod_cd
+		WHERE b.grp_cd = 'DATA_CATLOG'
+	 	<choose>
+	 		<when test="searchOption == 'title'">
+			OR anal_result_title LIKE '%${search_keyword}%'
+	 		</when>
+	 		<when test="searchOption == 'content'">
+		    OR anal_result_content LIKE '%${search_keyword}%'
+	 		</when>
+	 		<otherwise>
+		    OR anal_result_title LIKE '%${search_keyword}%'
+	 		OR anal_result_content LIKE '%${search_keyword}%'
+	 		</otherwise>
+	 	</choose>
+		ORDER BY anal_result_no DESC;
+	</select>
+	
+	<select id="getAnalResultDetail" resultType="hashmap">
+		/* dongjak.main.MainDAO.getAnalResultList */
+		SELECT
+			*
+			, c.cod_nm AS anal_result_type_nm
+			, b.file_nm_org
+			, b.file_nm_local
+		FROM base.anal_result_mngr a
+		LEFT JOIN base.file_mngr b ON a.att_file_no = b.file_no
+		LEFT JOIN base.com_code c ON a.anal_result_type = c.cod_cd
+		WHERE anal_result_no = ${anal_result_no}
+		ORDER BY anal_result_no DESC;
+	</select>
+	
+	<select id="getMainAnalResultList" resultType="hashmap">
+		/* dongjak.main.MainDAO.getMainAnalResultList */
+		SELECT * 
+		FROM base.anal_result_mngr
+		ORDER BY anal_result_no DESC
+		LIMIT 5 ;
+	</select>
+	
+	<select id="getMainSearchResult" resultType="hashmap">
+		/* dongjak.main.MainDAO.getMainSearchResult */
+		SELECT
+			'catalog' AS d_div
+			, mta_nm AS d_nm
+			, NULL AS d_cat
+		FROM base.mta_data
+		WHERE use_stat = 'Y'
+			AND mta_nm LIKE '%' || #{query} || '%'
+		UNION ALL
+		SELECT
+			'policy' AS d_div
+			, a.ply_nm AS d_nm
+			, b.cod_nm AS d_cat
+		FROM base.ply_mngr a , base.com_code b
+		WHERE a.ply_cat = b.cod_cd
+			AND a.use_stat = 'Y'
+			AND b.use_stat = 'Y'
+			AND a.ply_nm LIKE '%' || #{query} || '%'
+	</select>
+	
+</mapper>

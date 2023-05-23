@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.dashboard.AdminDashboardDAO">
+
+	<sql id="schemaName">data_catalog</sql>
+	<sql id="schemaValue">'data_catalog'</sql>
+
+	<select id="getDashboardDatas" resultType="hashmap">
+	 	/* dongjak.admin.AdminDashboardDAO.getMetadatas */
+		SELECT
+			   a.mta_cd
+			   , max(a.mta_nm ) as mta_nm
+			   , max(a.mta_desc) as mta_desc
+			   , max(a.mta_src) as mta_src
+	 		   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , max(a.mta_tbl) as mta_tbl
+			   , max(a.mta_cat) as mta_cat
+			   , c.cod_nm AS mta_fcly_nm
+			   , b.cod_nm AS mta_cat_nm
+			   , to_char(to_date(MAX(d.data_date), 'YYYYMMDD'), 'YYYY-MM-DD') AS mta_upt_date
+			   , max(a.use_stat) as use_stat
+		  FROM   base.dashboard_data a
+		  	   inner JOIN base.dashboard_data_tbl d ON a.mta_cd = d.mta_cd  
+		       left outer join  base.com_code b on a.mta_cat = b.cod_cd
+		       left outer join  base.com_code c on a.mta_fcly = c.cod_cd
+		 WHERE 1 = 1
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm
+		 ORDER BY max(a.mta_idx) asc
+	</select>
+	
+	<select id="getDashboardColumns" resultType="hashmap">
+	 	/* dongjak.admin.AdminDashboardDAO.getDataColumns */
+	 	<![CDATA[
+	 	SELECT
+	 		a.col_nm_org
+ 			, COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+ 			, COALESCE(b.col_axis, '없음') AS col_axis
+ 			, a.col_type
+		FROM (
+			SELECT
+				PS.RELNAME AS tbl_nm
+				, PA.ATTNAME AS col_nm_org
+				, PD.DESCRIPTION AS col_nm_alias
+				, ISC.UDT_NAME AS col_type
+				, PA.ATTNUM AS col_idx
+			FROM PG_STAT_ALL_TABLES PS
+			INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+			LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+			, INFORMATION_SCHEMA.COLUMNS ISC ]]>
+			WHERE PS.SCHEMANAME = <include refid="schemaValue" />
+				AND PS.RELNAME = #{mta_tbl_latest}
+				AND ISC.TABLE_NAME = PS.RELNAME
+				AND ISC.COLUMN_NAME = PA.ATTNAME
+		) a
+		LEFT JOIN base.mta_data_col b ON a.col_nm_org = b.col_nm_org AND b.mta_cd = #{mta_cd}
+		ORDER BY a.col_idx ASC
+	</select>
+	
+	<select id="checkDashboardIntegrated" resultType="boolean">
+	 	/* dongjak.admin.AdminDashboardDAO.checkDataIntegrated */
+		<![CDATA[
+		SELECT
+			(COUNT(DISTINCT col_count) <= 1) as integrated ]]>
+		FROM (
+			SELECT
+				c.col_nm_org
+				, COUNT(c.col_nm_org) as col_count
+			FROM base.mta_data a
+				, base.mta_data_tbl b
+				, (
+					SELECT
+						PS.RELNAME AS tbl_nm
+						, PA.ATTNAME AS col_nm_org
+						, ISC.UDT_NAME AS col_type
+					FROM PG_STAT_ALL_TABLES PS
+						, PG_ATTRIBUTE PA
+						, INFORMATION_SCHEMA.COLUMNS ISC
+					WHERE PS.RELID = PA.ATTRELID
+						AND PA.ATTNUM > 0
+						AND PA.atttypid > 0
+						AND PS.SCHEMANAME = <include refid="schemaValue" />
+						AND ISC.TABLE_NAME = PS.RELNAME
+						AND ISC.COLUMN_NAME = PA.ATTNAME
+					ORDER BY PS.RELNAME
+				) c
+			WHERE a.mta_cd = #{mta_cd}
+				AND a.mta_cd = b.mta_cd
+				AND b.data_tbl = c.tbl_nm
+			GROUP BY c.col_nm_org, c.col_type
+		) a
+	</select>
+	
+	<select id="checkDashboardColumnUsed" resultType="boolean">
+	 	/* dongjak.admin.AdminDashboardDAO.checkDataColumnUsed */
+	 	SELECT (COUNT(*) > 0)
+	 	  FROM base.mta_data_vis
+	 	 WHERE mta_cd = #{mta_cd}
+	 	   AND (#{col_nm_org} = vis_x
+	 	    OR  #{col_nm_org} = ANY(vis_y))
+	</select>
+	
+	
+	<insert id="updateDashboardColumn" parameterType="hashmap">
+		/* dongjak.admin.AdminDashboardDAO.updateDataColumn */
+		INSERT
+		  INTO base.mta_data_col (
+				mta_cd
+				, col_nm_org
+				, col_nm_alias
+				, col_axis
+		  ) VALUES (
+		  		#{mta_cd}
+		  		, #{col_nm_org}
+		  		, NULLIF(#{col_nm_alias}, '')
+		  		, NULLIF(#{col_axis}, '')
+		  ) ON CONFLICT(mta_cd, col_nm_org)
+		  	DO UPDATE
+		  	   SET col_nm_alias = NULLIF(#{col_nm_alias}, '')
+		  	     , col_axis = NULLIF(#{col_axis}, '');
+	</insert>
+	
+	<select id="getVisualizes" resultType="hashmap">
+	 	/* dongjak.admin.AdminDashboardDAO.getVisualizes */
+	 	SELECT 
+		   <!-- dashboard_cd -->
+		    vis_nm
+		   , vis_type
+		   , vis_desc
+		   , vis_x
+		   , ARRAY_TO_JSON(vis_y) AS vis_y
+		   , vis_o
+		   , vis_idx
+		   , use_stat
+		   , trgt_scrin 
+		   , trgt_div 
+		 FROM base.dashboard_vis
+		 	<!-- WHERE dashboard_cd = NULL -->
+		 	ORDER BY vis_idx asc;
+	 	 
+	</select>
+	
+	<select id="getDashboardVis" resultType="hashmap">
+        /* dongjak.admin.AdminDashboardDAO.getDashboardVis */
+        select * from (
+			select
+	            mta_cd,
+	            vis_nm,
+	            vis_type,  
+	            use_stat,
+	            trgt_scrin,
+	            trgt_div,
+	            vis_cate,
+	            vis_index,
+	            vis_sort,
+	            use_at
+	            FROM base.dashboard_vis order by trgt_scrin asc
+            ) t1
+         order by trgt_scrin, vis_index 
+    </select>
+    
+    <update id="updateDashboardVis" parameterType="hashmap">
+    /* dongjak.admin.AdminDashboardDAO.updateDashboardVis */
+    	update base.dashboard_vis set vis_nm = #{vis_nm} ,vis_type = #{vis_type}, use_at = #{use_at} where mta_cd = #{mta_cd}
+    	<if test='vis_cate != null and vis_cate != ""'>
+			and vis_cate = #{vis_cate}
+ 		</if>
+    </update>
+    
+    <update id="updateDashboardLayout" parameterType="hashmap">
+    /* dongjak.admin.AdminDashboardDAO.updateDashboardVis */
+    	update base.dashboard_vis set vis_index = #{vis_index}::integer where trgt_scrin = #{trgt_scrin} and vis_sort = #{vis_sort}
+    </update>
+    
+    
+    
+
+</mapper>

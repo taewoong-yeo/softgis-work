@@ -1,0 +1,645 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.data.AdminDataDAO">
+	
+	<sql id="schemaName">data_catalog</sql>
+	<sql id="schemaValue">'data_catalog'</sql>
+	<sql id="smart_schemaValue">'civil_data'</sql>
+	
+	<select id="getMetadatas" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getMetadatas */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , a.mta_tbl
+			   , a.mta_cat
+			   , a.mta_dept
+			   , a.mta_remark
+			   , c.cod_nm AS mta_fcly_nm
+			   , b.cod_nm AS mta_cat_nm
+			   , MAX(d.data_date) AS mta_upt_date
+			   , a.use_stat
+		  FROM ( base.mta_data a
+		  	     LEFT JOIN base.mta_data_tbl d ON a.mta_cd = d.mta_cd )
+		       , cte_code b
+		       , cte_code c
+		 WHERE 1 = 1
+		   AND a.mta_cat = b.cod_cd
+		   AND a.mta_fcly = c.cod_cd
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm
+		 ORDER BY a.mta_idx ASC;
+	</select>
+
+	<select id="checkMetadataNameCollision" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.checkMetadataNameCollision */
+		SELECT
+		       mta_cd
+		  FROM base.mta_data
+		 WHERE mta_nm = #{mta_nm}
+		   AND mta_nm != #{mta_nm_old}
+	</select>
+
+	<select id="checkMetadataTableCollision" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.checkMetadataTableCollision */
+		SELECT
+		       mta_cd
+		  FROM base.mta_data
+		 WHERE mta_tbl = #{mta_tbl}
+		   AND mta_tbl != #{mta_tbl_old}
+	</select>
+
+	<select id="checkMetadataUsed" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkMetadataUsed */
+		SELECT
+			   COUNT(*) > 0
+		  FROM base.ply_mta_mngr
+		 WHERE mta_cd = #{mta_cd}
+	</select>
+
+	<select id="checkMetadataUsedByDate" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkMetadataUsedByDate */
+		SELECT
+			   COUNT(*) > 0
+		  FROM base.ply_mta_mngr
+		 WHERE mta_cd = #{mta_cd}
+		   AND pm_date = #{data_date}
+	</select>
+
+	<insert id="insertMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.insertMetadata */
+		INSERT
+		  INTO base.mta_data (
+			   mta_cd
+			   , mta_nm
+			   , mta_desc
+			   , mta_src
+			   , mta_fcly
+			   , mta_gther
+			   , mta_url
+			   , mta_tbl
+			   , mta_cat
+			   , mta_dept
+			   , mta_remark
+			   , use_stat
+		  ) VALUES (
+			   #{mta_tbl}
+			   , #{mta_nm}
+			   , #{mta_desc}
+			   , #{mta_src}
+			   , #{mta_fcly}
+			   , #{mta_gther}
+			   , #{mta_url}
+			   , #{mta_tbl}
+			   , #{mta_cat}
+			   , #{mta_dept}
+			   , #{mta_remark}
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateMetadata */
+		UPDATE
+			   base.mta_data
+		   SET
+			   mta_nm = #{mta_nm}
+			   , mta_desc = #{mta_desc}
+			   , mta_src = #{mta_src}
+			   , mta_fcly = #{mta_fcly}
+			   , mta_gther = #{mta_gther}
+			   , mta_url = #{mta_url}
+			   , mta_cat = #{mta_cat}
+			   , mta_dept = #{mta_dept}
+			   , mta_remark = #{mta_remark}
+			   , use_stat = #{use_stat}
+			   , mta_tbl = #{mta_tbl}
+		 WHERE mta_cd = #{mta_cd}
+	</update>
+	
+	<delete id="deleteMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteMetadata */
+		DELETE
+		  FROM base.mta_data
+		 WHERE mta_cd = #{mta_cd}
+	</delete>
+	
+	<select id="getDatas" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getDatas */
+	 	SELECT 
+				mta_cd
+				, data_tbl
+				, data_date
+				, use_stat
+	 	  FROM base.mta_data_tbl
+	 	 WHERE mta_cd = #{mta_cd}
+	 	 ORDER BY data_date DESC
+	</select>
+	
+	<select id="checkDataIntegrated" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkDataIntegrated */
+		<![CDATA[
+		SELECT
+			(COUNT(DISTINCT col_count) <= 1) as integrated ]]>
+		FROM (
+			SELECT
+				c.col_nm_org
+				, COUNT(c.col_nm_org) as col_count
+			FROM base.mta_data a
+				, base.mta_data_tbl b
+				, (
+					SELECT
+						PS.RELNAME AS tbl_nm
+						, PA.ATTNAME AS col_nm_org
+						, ISC.UDT_NAME AS col_type
+					FROM PG_STAT_ALL_TABLES PS
+						, PG_ATTRIBUTE PA
+						, INFORMATION_SCHEMA.COLUMNS ISC
+					WHERE PS.RELID = PA.ATTRELID
+						AND PA.ATTNUM > 0
+						AND PA.atttypid > 0
+						AND PS.SCHEMANAME = <include refid="schemaValue" />
+						AND ISC.TABLE_SCHEMA = PS.SCHEMANAME
+						AND ISC.TABLE_NAME = PS.RELNAME
+						AND ISC.COLUMN_NAME = PA.ATTNAME
+					ORDER BY PS.RELNAME
+				) c
+			WHERE a.mta_cd = #{mta_cd}
+				AND a.mta_cd = b.mta_cd
+				AND b.data_tbl = c.tbl_nm
+			GROUP BY c.col_nm_org, c.col_type
+		) a;
+	</select>
+	
+	<select id="getFirstDataColumns" resultType="String">
+	 	/* dongjak.admin.data.AdminDataDAO.getFirstDataColumns */
+		SELECT c.col_nm_org
+		  FROM base.mta_data a
+			, base.mta_data_tbl b
+			, (
+				SELECT
+					PS.RELNAME AS tbl_nm
+					, PA.ATTNAME AS col_nm_org
+					, ISC.UDT_NAME AS col_type
+				FROM PG_STAT_ALL_TABLES PS
+					, PG_ATTRIBUTE PA
+					, INFORMATION_SCHEMA.COLUMNS ISC
+				WHERE PS.RELID = PA.ATTRELID
+					AND PA.ATTNUM > 0
+					AND PA.atttypid > 0
+					AND PS.SCHEMANAME = <include refid="schemaValue" />
+					AND ISC.TABLE_SCHEMA = PS.SCHEMANAME
+					AND ISC.TABLE_NAME = PS.RELNAME
+					AND ISC.COLUMN_NAME = PA.ATTNAME
+					AND ISC.COLUMN_NAME NOT IN ('fid','geom')
+				ORDER BY PS.RELNAME
+			) c
+			, (select data_date
+			     from base.mta_data_tbl 
+				where mta_cd = #{mta_cd}
+			    order by data_date asc
+			    limit 1
+			   ) d
+		WHERE a.mta_cd = #{mta_cd}
+		  AND a.mta_cd = b.mta_cd
+		  AND b.data_tbl = c.tbl_nm
+		  AND b.data_date = d.data_date
+		ORDER BY c.col_nm_org ASC
+	</select>
+
+	<insert id="insertData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.insertData */
+		INSERT
+		  INTO base.mta_data_tbl (
+			   mta_cd
+			   , data_tbl
+			   , data_date
+			   , use_stat
+		  ) VALUES (
+			   #{mta_cd}
+			   , #{data_tbl}
+			   , #{data_date}
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateData */
+		UPDATE
+			   base.mta_data_tbl
+		   SET
+			   use_stat = #{use_stat}
+		 WHERE data_tbl = #{data_tbl}
+	</update>
+	
+	<delete id="deleteData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteData */
+		DELETE
+		  FROM base.mta_data_tbl
+		 WHERE data_tbl = #{data_tbl}
+	</delete>
+	
+	<select id="getDataColumns" resultType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.getDataColumns */
+		<![CDATA[
+	 	SELECT
+	 		a.col_nm_org
+	 		, COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+	 		, COALESCE(b.col_axis, '없음') AS col_axis
+	 		, a.col_type
+ 		FROM (
+ 			SELECT
+ 				PS.RELNAME AS tbl_nm
+ 				, PA.ATTNAME AS col_nm_org
+ 				, PD.DESCRIPTION AS col_nm_alias
+ 				, ISC.UDT_NAME AS col_type
+ 				, PA.ATTNUM AS col_idx
+			FROM PG_STAT_ALL_TABLES PS
+			INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+			LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+			, INFORMATION_SCHEMA.COLUMNS ISC ]]>
+			WHERE PS.SCHEMANAME = <include refid="schemaValue" />
+				AND PS.RELNAME = #{mta_tbl_latest}
+				AND ISC.TABLE_NAME = PS.RELNAME
+				AND ISC.COLUMN_NAME = PA.ATTNAME
+		) a
+		LEFT JOIN base.mta_data_col b ON a.col_nm_org = b.col_nm_org AND b.mta_cd = #{mta_cd}
+		ORDER BY a.col_idx ASC;
+	</select>
+	
+	<select id="getDataDefinedColumns" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getDataDefinedColumns */
+	 	SELECT
+				col_nm_org
+				, col_nm_alias
+				, col_axis
+	 	  FROM base.mta_data_col
+	 	 WHERE mta_cd = #{mta_cd}
+	 	   AND col_axis IS NOT NULL
+	</select>
+
+	<select id="checkDataColumnUsed" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkDataColumnUsed */
+	 	SELECT (COUNT(*) > 0)
+	 	  FROM base.mta_data_vis
+	 	 WHERE mta_cd = #{mta_cd}
+	 	   AND (#{col_nm_org} = vis_x
+	 	    OR  #{col_nm_org} = ANY(vis_y));
+	</select>
+	
+	<insert id="updateDataColumn" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateDataColumn */
+		INSERT
+		  INTO base.mta_data_col (
+				mta_cd
+				, col_nm_org
+				, col_nm_alias
+				, col_axis
+		  ) VALUES (
+		  		#{mta_cd}
+		  		, #{col_nm_org}
+		  		, NULLIF(#{col_nm_alias}, '')
+		  		, NULLIF(#{col_axis}, '')
+		  ) ON CONFLICT(mta_cd, col_nm_org)
+		  	DO UPDATE
+		  	   SET col_nm_alias = NULLIF(#{col_nm_alias}, '')
+		  	     , col_axis = NULLIF(#{col_axis}, '');
+	</insert>
+	
+	<update id="deleteDataColumn" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteDataColumn */
+		DELETE
+		  FROM base.mta_data_col
+		 WHERE mta_cd = #{mta_cd}
+	</update>
+	
+	<select id="getVisualizes" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getVisualizes */
+	 	SELECT 
+	 		   mta_cd
+			   , vis_nm
+			   , vis_type
+			   , vis_desc
+			   , vis_x
+			   , ARRAY_TO_JSON(vis_y) AS vis_y
+			   , vis_o
+			   , vis_idx
+			   , use_stat
+	 	  FROM base.mta_data_vis
+	 	 WHERE mta_cd = #{mta_cd}
+	 	 ORDER BY vis_idx ASC
+	</select>
+	
+	<select id="getVisualizePreview" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getVisualizePreview */
+	 	SELECT
+	 		<foreach collection="vis_y" item="y" separator=", ">"${y}"</foreach>,
+	 		"${vis_x}"
+	 	  FROM <include refid="schemaName" />."${mta_tbl_latest}"
+	 	 WHERE 
+	 		<foreach collection="vis_y" item="y" separator=" AND ">
+	 		"${y}" IS NOT NULL
+	 		OR "${y}"::varchar = ' '
+	 		</foreach>
+	 		AND "${vis_x}" IS NOT NULL
+	 		OR "${vis_x}"::varchar = ' '
+	 	 ORDER BY "${vis_o}"
+	 	 LIMIT 100;
+	</select>
+
+	<select id="checkVisualizeCollision" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.checkVisualizeCollision */
+		SELECT
+		       vis_nm
+		  FROM base.mta_data_vis
+		 WHERE mta_cd = #{mta_cd}
+		   AND vis_nm = #{vis_nm}
+		   AND vis_nm != #{vis_nm_old}
+	</select>
+
+<!-- 	<select id="checkMetaDataTable" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkMetaDataTable */
+	 	SELECT count(*) > 0
+	 	  FROM base.mta_data_tbl 
+		 WHERE mta_cd = #{mta_cd}
+	</select>
+	
+	<update id="changeMetaDataTableName" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.changeMetaDataTableName */
+	 	ALTER TABLE mta_tbl RENAME TO #{mta_tbl};
+	</update> -->
+	
+	<insert id="insertVisualize" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.insertVisualize */
+		INSERT
+		  INTO base.mta_data_vis (
+	 		   mta_cd
+			   , vis_nm
+			   , vis_type
+			   , vis_desc
+			   , vis_x
+			   , vis_y
+			   , vis_o
+			   , vis_idx
+			   , use_stat
+		  ) VALUES (
+			   #{mta_cd}
+			   , #{vis_nm}
+			   , #{vis_type}
+			   , #{vis_desc}
+			   , #{vis_x}
+			   , #{vis_y,typeHandler=dongjak.core.MyBatisArrayTypeHandler}
+			   , #{vis_o}
+			   , 1 + COALESCE((SELECT MAX(vis_idx) FROM base.mta_data_vis
+							   GROUP BY mta_cd HAVING mta_cd = #{mta_cd}), 0)
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateVisualize" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateVisualize */
+		UPDATE
+			   base.mta_data_vis
+		   SET
+			   vis_nm = #{vis_nm}
+			   , vis_type = #{vis_type}
+			   , vis_desc = #{vis_desc}
+			   , vis_x = #{vis_x}
+			   , vis_y = #{vis_y,typeHandler=dongjak.core.MyBatisArrayTypeHandler}
+			   , vis_o = #{vis_o}
+			   , use_stat = #{use_stat}
+		 WHERE vis_nm = #{vis_nm_old}
+	</update>
+
+	<update id="updateVisualizeIndex" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateVisualizeIndex */
+		WITH src AS (
+						SELECT vis_nm, vis_idx 
+						  FROM base.mta_data_vis b 
+						 WHERE b.vis_nm = #{vis_nm}),
+		     dst AS (
+		     			SELECT vis_nm, vis_idx 
+		     			  FROM base.mta_data_vis c 
+		     			 WHERE c.vis_idx = #{vis_idx}::INTEGER
+		     			   AND c.mta_cd = #{mta_cd} limit 1)
+		UPDATE base.mta_data_vis a
+		   SET vis_idx = CASE WHEN a.vis_nm = b.vis_nm
+		   					  THEN #{vis_idx}::INTEGER ELSE b.vis_idx END
+		  FROM src b
+		 WHERE a.vis_nm = b.vis_nm
+		    OR a.vis_nm = (SELECT vis_nm FROM dst);
+	</update>
+	
+	<delete id="deleteVisualize" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteVisualize */
+		DELETE
+		  FROM base.mta_data_vis
+		 WHERE vis_nm = #{vis_nm}
+	</delete>
+	
+	<delete id="deleteVisualizeByMtaCd" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteVisualize */
+		DELETE
+		  FROM base.mta_data_vis
+		 WHERE mta_cd = #{mta_cd}
+	</delete>
+	
+	<delete id="deletePolicyMetadata" parameterType="hashmap">
+		/* dongjak.admin.policy.AdminPolicyDAO.deletePolicyMetadata */
+		DELETE
+		  FROM base.ply_mta_mngr
+		 WHERE mta_cd = #{mta_cd}
+		   AND pm_date = #{data_date}
+	</delete>
+	
+	<select id="getAnalsmartMetadatas" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getAnalsmartMetadatas */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , a.mta_tbl
+			   , a.mta_cat
+			   , a.mta_dept
+			   , a.mta_remark
+			   , c.cod_nm AS mta_fcly_nm
+			   , b.cod_nm AS mta_cat_nm
+			   , MAX(d.data_date) AS mta_upt_date
+			   , a.use_stat
+		  FROM ( base.analsmart_data a
+		  	     LEFT JOIN base.analsmart_data_tbl d ON a.mta_cd = d.mta_cd )
+		       , cte_code b
+		       , cte_code c
+		 WHERE a.mta_cat = b.cod_cd
+		   AND a.mta_fcly = c.cod_cd
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm
+		 ORDER BY a.mta_idx ASC;
+	</select>
+
+	<select id="checkAnalsmartMetadataNameCollision" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.checkAnalsmartMetadataNameCollision */
+		SELECT
+		       mta_cd
+		  FROM base.analsmart_data
+		 WHERE mta_nm = #{mta_nm}
+		   AND mta_nm != #{mta_nm_old}
+	</select>
+
+	<select id="checkAnalsmartMetadataTableCollision" resultType="string">
+	 	/* dongjak.admin.data.AdminDataDAO.checkAnalsmartMetadataTableCollision */
+		SELECT
+		       mta_cd
+		  FROM base.analsmart_data
+		 WHERE mta_tbl = #{mta_tbl}
+		   AND mta_tbl != #{mta_tbl_old}
+	</select>
+
+	<insert id="insertAnalsmartMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.insertAnalsmartMetadata */
+		INSERT
+		  INTO base.analsmart_data (
+			   mta_cd
+			   , mta_nm
+			   , mta_desc
+			   , mta_src
+			   , mta_fcly
+			   , mta_gther
+			   , mta_url
+			   , mta_tbl
+			   , mta_cat
+			   , mta_dept
+			   , mta_remark
+			   , use_stat
+		  ) VALUES (
+			   #{mta_tbl}
+			   , #{mta_nm}
+			   , #{mta_desc}
+			   , #{mta_src}
+			   , #{mta_fcly}
+			   , #{mta_gther}
+			   , #{mta_url}
+			   , #{mta_tbl}
+			   , #{mta_cat}
+			   , #{mta_dept}
+			   , #{mta_remark}
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateAnalsmartMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateAnalsmartMetadata */
+		UPDATE
+			   base.analsmart_data
+		   SET
+			   mta_nm = #{mta_nm}
+			   , mta_desc = #{mta_desc}
+			   , mta_src = #{mta_src}
+			   , mta_fcly = #{mta_fcly}
+			   , mta_gther = #{mta_gther}
+			   , mta_url = #{mta_url}
+			   , mta_cat = #{mta_cat}
+			   , mta_dept = #{mta_dept}
+			   , mta_remark = #{mta_remark}
+			   , use_stat = #{use_stat}
+			   , mta_tbl = #{mta_tbl}
+		 WHERE mta_cd = #{mta_cd}
+	</update>
+	
+	<delete id="deleteAnalsmartMetadata" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteAnalsmartMetadata */
+		DELETE
+		  FROM base.analsmart_data
+		 WHERE mta_cd = #{mta_cd}
+	</delete>
+	
+	<select id="getAnalsmartDatas" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getAnalsmartDatas */
+	 	SELECT 
+				mta_cd
+				, data_tbl
+				, data_date
+				, use_stat
+	 	  FROM base.analsmart_data_tbl
+	 	 WHERE mta_cd = #{mta_cd}
+	 	 ORDER BY data_date DESC
+	</select>
+	
+	<select id="checkAnalsmartDataIntegrated" resultType="boolean">
+	 	/* dongjak.admin.data.AdminDataDAO.checkAnalsmartDataIntegrated */
+		<![CDATA[
+		SELECT
+			(COUNT(DISTINCT col_count) <= 1) as integrated ]]>
+	  	FROM (
+	  		SELECT
+	  			c.col_nm_org
+	  			, COUNT(c.col_nm_org) as col_count
+  			FROM base.analsmart_data a
+  				, base.analsmart_data_tbl b
+  				, (
+  					SELECT
+  						PS.RELNAME AS tbl_nm
+  						, PA.ATTNAME AS col_nm_org
+  						, ISC.UDT_NAME AS col_type
+					FROM PG_STAT_ALL_TABLES PS
+						, PG_ATTRIBUTE PA
+						, INFORMATION_SCHEMA.COLUMNS ISC
+					WHERE PS.RELID = PA.ATTRELID
+						AND PA.ATTNUM > 0
+						AND PA.atttypid > 0
+						AND PS.SCHEMANAME = <include refid="smart_schemaValue" />
+						AND ISC.TABLE_SCHEMA = PS.SCHEMANAME
+						AND ISC.TABLE_NAME = PS.RELNAME
+						AND ISC.COLUMN_NAME = PA.ATTNAME
+					ORDER BY PS.RELNAME
+				) c
+			WHERE a.mta_cd = #{mta_cd}
+				AND a.mta_cd = b.mta_cd
+				AND b.data_tbl = c.tbl_nm
+			GROUP BY c.col_nm_org, c.col_type
+		) a;
+	</select>
+
+	<insert id="insertAnalsmartData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.insertAnalsmartData */
+		INSERT
+		  INTO base.analsmart_data_tbl (
+			   mta_cd
+			   , data_tbl
+			   , data_date
+			   , use_stat
+		  ) VALUES (
+			   #{mta_cd}
+			   , #{data_tbl}
+			   , #{data_date}
+			   , #{use_stat}
+		  )
+	</insert>
+	
+	<update id="updateAnalsmartData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.updateAnalsmartData */
+		UPDATE
+			   base.analsmart_data_tbl
+		   SET
+			   use_stat = #{use_stat}
+		 WHERE data_tbl = #{data_tbl}
+	</update>
+	
+	<delete id="deleteAnalsmartData" parameterType="hashmap">
+		/* dongjak.admin.data.AdminDataDAO.deleteAnalsmartData */
+		DELETE
+		  FROM base.analsmart_data_tbl
+		 WHERE data_tbl = #{data_tbl}
+	</delete>
+</mapper>

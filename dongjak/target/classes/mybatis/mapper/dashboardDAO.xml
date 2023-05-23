@@ -1,0 +1,1060 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.dashboard.DashboardDAO">
+
+	<!-- 차트 타입 -->
+	<select id="visData" resultType="hashmap" parameterType="String">
+	/* dongjak.dashboard.DashboardDAO.visData */
+		SELECT	vis_nm
+			,	vis_type
+			,	trgt_div
+			,	trgt_div_sub
+			,	vis_series
+			,	use_at
+			,	vis_cate
+		FROM base.dashboard_vis
+		WHERE trgt_div_sub = #{value}
+	</select>
+
+
+	<!-- 총 인구 CNT -->
+	<select id="peopleTotal" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.peopleTotal */
+		SELECT	base_mon
+			,	adm_nm
+			,	tot_val
+		FROM dashboard.pop_tot_adm_month
+		WHERE 1=1
+		AND adm_cd = #{admCd}
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd})
+	</select>
+
+	<!-- 총 인구 -->
+	<select id="population" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.population */
+		SELECT	base_mon
+			,	adm_cd as "hiddenValue"
+			,	sum(tot_val) as "y"
+			,	adm_nm as "name"
+		FROM dashboard.pop_tot_adm_month
+		WHERE 1=1
+		AND adm_cd NOT IN ('36020')
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd NOT IN ('36020'))
+		GROUP BY adm_nm, adm_cd, base_mon
+		ORDER BY base_mon DESC, adm_cd
+	</select>
+
+	<!-- 내국인 -->
+	<select id="nativePeopleRatio" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.nativePeopleRatio */
+		SELECT 	base_mon
+			,	sum(native_ma_val) as "남자"
+			,	sum(native_fe_val) as "여자"
+		FROM dashboard.pop_tot_adm_month
+		WHERE 1=1
+		AND adm_cd = #{admCd}
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd})
+		GROUP BY base_mon
+	</select>
+
+	<!-- 외국인 -->
+	<select id="frgnrPeopleRatio" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.frgnrPeopleRatio */
+		SELECT 	base_mon
+			,	sum(frgnr_ma_val) as "남자"
+			,	sum(frgnr_fe_val) as "여자"
+		FROM dashboard.pop_tot_adm_month
+		WHERE 1=1
+		AND frgnr_tot_val is not null
+		AND frgnr_tot_val != 0
+		AND adm_cd = #{admCd}
+		AND base_mon <![CDATA[<=]]> #{eDate}
+		GROUP BY base_mon
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!-- 연령분포-->
+	<select id="peopleAges" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.peopleAges */
+		SELECT 	base_mon
+			,	(ma_0_4_val + fe_0_4_val) as "0~4세"
+			,	(ma_5_9_val + fe_5_9_val) as "5~9세"
+			,	(ma_10_14_val + fe_10_14_val) as "10~14세"
+			,	(ma_15_19_val + fe_15_19_val) as "15~19세"
+			,	(ma_20_24_val + fe_20_24_val) as "20~24세"
+			,	(ma_25_29_val + fe_25_29_val) as "25~29세"
+			,	(ma_30_34_val + fe_30_34_val) as "30~34세"
+			,	(ma_35_39_val + fe_35_39_val) as "35~39세"
+			,	(ma_40_44_val + fe_40_44_val) as "40~44세"
+			,	(ma_45_49_val + fe_45_49_val) as "45~49세"
+			,	(ma_50_54_val + fe_50_54_val) as "50~54세"
+			,	(ma_55_59_val + fe_55_59_val) as "55~59세"
+			,	(ma_60_64_val + fe_60_64_val) as "60~64세"
+			, 	(ma_65_69_val + fe_65_69_val) as "65~69세"
+			,	(ma_70_74_val + fe_70_74_val) as "70~74세"
+			,	(ma_75_79_val + fe_75_79_val) as "75~79세"
+			,	(ma_80_84_val + fe_80_84_val) as "80~84세"
+			,	(ma_85_89_val + fe_85_89_val) as "85~89세"
+			,	(ma_90_94_val + fe_90_94_val + ma_95_99_val + fe_95_99_val + ma_100_104_val + fe_100_104_val + ma_105_109_val + fe_105_109_val + ma_110up_val + fe_110up_val) as "90세 이상"
+		FROM dashboard.pop_age_month
+		WHERE 1=1
+		AND adm_cd = #{admCd}
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.pop_age_month WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd})
+	</select>
+
+	<!-- 연도별 인구증감 -->
+	<select id="peopleIncrease" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.peopleIncrease */
+		SELECT	substring(base_mon, 1, 4) as name
+			,	sum(tot_val) as "y"
+			, substring(base_mon, 1, 4) as base_mon
+		FROM (
+			SELECT * FROM dashboard.pop_tot_adm_month ptam
+			WHERE base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month ptam2 WHERE SUBSTRING(ptam2.base_mon ,1,4 ) = (to_char( to_date(#{eDate}, 'yyyymm') +interval '-3 years'  , 'yyyy')) )
+			UNION ALL
+			SELECT * FROM dashboard.pop_tot_adm_month ptam
+			WHERE base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month ptam2 WHERE SUBSTRING(ptam2.base_mon ,1,4 ) = (to_char( to_date(#{eDate}, 'yyyymm') +interval '-2 years'  , 'yyyy')))
+			UNION ALL
+			SELECT * FROM dashboard.pop_tot_adm_month ptam
+			WHERE base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month ptam2 WHERE SUBSTRING(ptam2.base_mon ,1,4 ) = (to_char( to_date(#{eDate}, 'yyyymm') +interval '-1 years'  , 'yyyy')))
+			UNION ALL
+			SELECT * FROM dashboard.pop_tot_adm_month ptam
+			WHERE base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month ptam2 WHERE SUBSTRING(ptam2.base_mon ,1,4 ) = (to_char( to_date(#{eDate}, 'yyyymm') , 'yyyy')))
+		) yList
+		WHERE yList.adm_cd = #{admCd}
+		GROUP BY name, base_mon
+		ORDER BY base_mon
+	</select>
+
+	<!-- 행정동별 가구수 -->
+	<select id="admHouse" resultType="hashmap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.admHouse */
+		SELECT 	sum(hshld_val) as "y"
+			,	adm_nm as "name"
+			,	adm_cd as "hiddenValue"
+			,	base_mon
+		FROM dashboard.pop_tot_adm_month
+		WHERE 1=1
+		AND adm_cd NOT IN ('36020')
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.pop_tot_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd NOT IN ('36020'))
+		GROUP BY adm_nm, adm_cd, base_mon
+		ORDER BY adm_cd
+	</select>
+
+	<!--인구증감 현황 -->
+	<select id="yearOnyear" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.yearOnyear */
+		WITH year_summary as (
+			SELECT base_mon, hshld_val, tot_val, adm_cd
+			FROM dashboard.pop_tot_adm_month as ptam
+			INNER JOIN (SELECT substring(base_mon,1,4) as base_year, max(base_mon) as bm
+						FROM dashboard.pop_tot_adm_month ptam
+						WHERE adm_cd = #{admCd}
+						AND base_mon <![CDATA[<=]]> #{eDate}
+						GROUP BY base_year) as byear
+			ON ptam.base_mon = byear.bm
+			WHERE 1=1
+			AND adm_cd = #{admCd}
+		)
+		SELECT	base_mon
+			,	tot_val
+			,	growth_tot
+			,	hshld_val
+			,	growth_hshld
+		FROM (
+		SELECT base_mon
+			,	tot_val
+			,	coalesce(round(100 * (tot_val - lag(tot_val) over(order by base_mon))/case when lag(tot_val) over(order by base_mon) = 0 then 1 else lag(tot_val) over(order by base_mon) end::numeric, 2), 0) as growth_tot
+			,	hshld_val
+			,	coalesce(round(100 * (hshld_val - lag(hshld_val) over(order by base_mon))/case when lag(hshld_val) over(order by base_mon) = 0 then 1 else lag(hshld_val) over(order by base_mon) end::numeric, 2), 0) as growth_hshld
+		FROM year_summary
+		) as t
+		WHERE 1=1
+		AND base_mon = (SELECT max(base_mon) FROM year_summary)
+	</select>
+
+
+	<!-- 건폐율-->
+	<select id="buildingInfo" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.buildingInfo */
+		SELECT
+			(SELECT max(base_mon) FROM dashboard.bld_bdtldr_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate}) as base_mon
+			, substring(base_mon, 1, 4) as "name"
+			, round(avg(val)::numeric ,2) as "y"
+		FROM dashboard.bld_bdtldr_adm_month
+		WHERE 1=1
+		AND adm_nm = #{admNm}
+		AND base_mon <![CDATA[<=]]> #{eDate}
+		group by name
+		ORDER BY name DESC
+		LIMIT 3
+	</select>
+
+	<!-- 건축물 종류-->
+	<select id="bldHouseKind" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.bldHouseKind */
+		SELECT	base_year as base_mon
+			,	hous as "주택"
+			,	slh_tot as "단독주택"
+			,	apt as "아파트"
+			,	rwhs as "연립주택"
+			,	mlpxhou as "다세대주택"
+			,	nonreside as "비거주용 건물내 주택"
+		FROM dashboard.bld_house_kind_adm_year
+		WHERE 1=1
+		AND adm_nm = #{admNm}
+		<!-- AND base_year = (SELECT max(base_year) FROM dashboard.bld_house_kind_adm_year) -->
+		AND base_year <![CDATA[<=]]> substring(#{eDate}, 1, 4)
+		order by base_year desc
+		limit 1
+	</select>
+
+	<!--전월대비 실거래 전월세 -->
+	<select id="bldRent" resultType="hashmap" parameterType="hashmap" >
+		/* dongjak.dashboard.DashboardDAO.bldRent */
+		WITH date_bld_rent as (
+			SELECT 	round((sum(tot_mtht_gtn)/case when sum(mtht_cnt) = 0 then 1 else sum(mtht_cnt) end::numeric)::numeric, 2) as amg
+				,	round((sum(tot_lfsts_gtn)/case when sum(lfsts_cnt) = 0 then 1 else sum(lfsts_cnt) end)::numeric, 2) as alg
+				,	sum(mtht_cnt) as mc
+				,	sum(lfsts_cnt) as lc
+				<if test='bldDate != "year"'>
+				,	lag(round((sum(tot_mtht_gtn)/case when sum(mtht_cnt) = 0 then 1 else sum(mtht_cnt) end)::numeric, 2)) over(order by cntrct_mt) as pr_amg
+				,	lag(round((sum(tot_lfsts_gtn)/case when sum(lfsts_cnt) = 0 then 1 else sum(lfsts_cnt) end)::numeric, 2)) over(order by cntrct_mt) as pr_alg
+				,	lag(sum(mtht_cnt)) over(order by cntrct_mt) as pr_mc
+				,	lag(sum(lfsts_cnt)) over(order by cntrct_mt) as pr_lc
+				,	cntrct_mt as base_mon
+				</if>
+				<if test='bldDate == "year"'>
+				,	prvyy_avg_mtht_gtn as pr_amg
+				,	prvyy_avg_lfsts_gtn as pr_alg
+				,	prvyy_mtht_cnt as pr_mc
+				,	prvyy_lfsts_cnt as pr_lc
+				,	substring(cntrct_mt, 1, 4) as base_mon
+				</if>
+			FROM dashboard.bld_${rentName}_rent_emd_month
+			WHERE 1=1
+			AND emd_nm = #{admNm}
+			GROUP BY emd_cd, emd_nm, base_mon <if test='bldDate == "year"'>, prvyy_mtht_cnt, prvyy_lfsts_cnt, prvyy_avg_mtht_gtn, prvyy_avg_lfsts_gtn</if>
+			ORDER BY base_mon
+		)
+		SELECT	base_mon
+			,	amg
+			,	coalesce(round(100 * (amg - pr_amg) / case when pr_amg = 0 then 1 else pr_amg end, 2), 0) as growth_amg
+			,	alg
+			,	coalesce(round(100 * (alg - pr_alg) / case when pr_alg = 0 then 1 else pr_alg end, 2), 0) as growth_alg
+			,	mc
+			,	coalesce(round(100 * (mc - pr_mc) / case when pr_mc = 0 then 1 else pr_mc end, 2), 0) as growth_mc
+			,	lc
+			,	coalesce(round(100 * (lc - pr_lc) / case when pr_lc = 0 then 1 else pr_lc end, 2), 0) as growth_lc
+		FROM date_bld_rent
+		WHERE 1=1
+		<if test='bldDate != "year"'>AND base_mon <![CDATA[<=]]> #{eDate}</if>
+		<if test='bldDate == "year"'>AND base_mon <![CDATA[<=]]> substring(#{eDate}, 1, 4)</if>
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!--전월대비 실거래 매매 -->
+	<select id="bldTrde" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldTrde */
+		WITH date_bld_trde as (
+			SELECT	sum(tot_cnt) as tnt
+				,	round((sum(tot_dlpc)/case when sum(tot_cnt) = 0 then 1 else sum(tot_cnt) end::numeric)::numeric , 2) as adlpc
+				<if test='bldDate != "year"'>
+				,	lag(sum(tot_cnt)) over(order by cntrct_mt) as pr_tnt
+				,	cntrct_mt as base_mon
+				</if>
+				<if test='bldDate == "year"'>
+				,	prvyy_tot as pr_tnt
+				,	substring(cntrct_mt, 1, 4) as base_mon
+				</if>
+			FROM dashboard.bld_${trdeName}_trde_emd_month
+			WHERE 1=1
+			AND emd_nm = #{admNm}
+			GROUP BY emd_cd, emd_nm, base_mon<if test='bldDate == "year"'>, prvyy_tot</if>
+			ORDER BY base_mon
+		)
+		SELECT	base_mon
+			,	tnt
+			,	adlpc
+			,	coalesce(round(100* (tnt - pr_tnt) / case when pr_tnt = 0 then 1 else pr_tnt end::numeric, 2), 0) as growth_tnt
+		FROM date_bld_trde
+		WHERE 1=1
+		<if test='bldDate != "year"'>AND base_mon <![CDATA[<=]]> #{eDate}</if>
+		<if test='bldDate == "year"'>AND base_mon <![CDATA[<=]]> substring(#{eDate}, 1, 4)</if>
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!--실거래 건축물 건축면적-->
+	<select id="bldTotar" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldTotar */
+		SELECT 	base_mon
+			,	round(val::numeric, 2) as val
+		FROM dashboard.bld_totar_adm_month
+		WHERE 1=1
+		AND adm_nm = #{admNm}
+		AND base_mon <![CDATA[<=]]> #{eDate}
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+	<!--실거래 건축물 연면적-->
+	<select id="bldAr" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldAr */
+		SELECT 	base_mon
+			,	round(val::numeric, 2) as val
+		FROM dashboard.bld_ar_adm_month
+		WHERE 1=1
+		AND base_mon <![CDATA[<=]]> #{eDate}
+		AND adm_nm = #{admNm}
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+	<!--실거래 건축물 노후건축물-->
+	<select id="bldOld" resultType="hashmap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldOld */
+		SELECT	base_mon
+			,	round(above20::numeric, 2) as val
+		FROM dashboard.bld_bildng_age_emd_month
+		WHERE 1=1
+		AND base_mon <![CDATA[<=]]> #{eDate}
+		AND emd_nm = #{admNm}
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!-- 연도별 증감현황 매매 -->
+	<select id="bldTrdeInc" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.bldTrdeInc */
+		SELECT *
+		FROM (
+			SELECT (SELECT max(cntrct_mt) FROM dashboard.bld_${incName}_trde_emd_month WHERE emd_nm = #{admNm} AND cntrct_mt <![CDATA[<=]]> #{eDate}) as base_mon
+					,	substring(cntrct_mt, 1, 4) as name
+					,	coalesce(round((sum(tot_dlpc)/case when sum(tot_cnt) = 0 then 1 else sum(tot_cnt) end::numeric)::numeric , 2), 0) as y
+			FROM dashboard.bld_${incName}_trde_emd_month
+			WHERE 1=1
+			AND emd_nm = #{admNm}
+			AND cntrct_mt <![CDATA[<=]]> #{eDate}
+			GROUP BY emd_nm, name, prvyy_tot_dlpc
+			ORDER BY name DESC
+			LIMIT 4
+		) T1
+		ORDER BY name
+
+	</select>
+
+	<!-- 연도별 증감현황 전월세 -->
+	<select id="bldRentInc" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.bldRentInc */
+		SELECT *
+		FROM (
+			SELECT	(SELECT max(cntrct_mt) FROM dashboard.bld_${incName}_rent_emd_month WHERE emd_nm = #{admNm} AND cntrct_mt <![CDATA[<=]]> #{eDate}) as base_mon
+				,	substring(cntrct_mt, 1, 4) as name
+				,	coalesce(round((sum(tot_mtht_gtn)/case when sum(mtht_cnt) = 0 then 1 else sum(mtht_cnt) end::numeric)::numeric, 2), 0) as "월세"
+				,	coalesce(round((sum(tot_lfsts_gtn)/case when sum(lfsts_cnt) = 0 then 1 else sum(lfsts_cnt) end::numeric)::numeric, 2), 0) as "전세"
+			FROM dashboard.bld_${incName}_rent_emd_month
+			WHERE 1=1
+			AND emd_nm = #{admNm}
+			AND cntrct_mt <![CDATA[<=]]> #{eDate}
+			GROUP BY emd_cd, emd_nm, name
+			ORDER BY name DESC
+			LIMIT 4
+		) T1
+		ORDER BY name
+	</select>
+
+	<!-- 노후 건축물 -->
+	<select id="bldAge" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldAge */
+		SELECT 	base_mon
+			,	val_20_24 as "20~24년"
+			,	val_25_29 as "25~29년"
+			,	val_30_34 as "30~34년"
+			,	val35 as "35년이상"
+		FROM dashboard.bld_bildng_age_emd_month
+		WHERE 1=1
+		AND emd_nm = #{admNm}
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.bld_bildng_age_emd_month WHERE base_mon <![CDATA[<=]]> #{eDate})
+		ORDER BY emd_cd , base_mon
+	</select>
+	
+	<!-- 노후건축물 시계열 -->
+	<select id="bldAgeMonth" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldAgeMonth */
+	<!-- 	
+		SELECT	base_mon
+			,	to_char(to_date(base_mon, 'yyyymm'), 'yyyy-mm') as name
+			,	above20 as y
+		FROM dashboard.bld_bildng_age_emd_month
+		WHERE emd_nm = #{admNm}
+		AND base_mon <![CDATA[<=]]> #{eDate} 
+		AND substring(base_mon, 1, 4) = substring(#{eDate}, 1, 4)
+		ORDER BY base_mon 
+		 -->
+		select base_mon
+			, name
+			, y
+		from 
+		(  
+			SELECT	base_mon
+				,	to_char(to_date(base_mon, 'yyyymm'), 'yyyy-mm') as name
+				,	above20 as y
+				,   ROW_NUMBER() OVER( ORDER BY base_mon desc) rn
+			FROM dashboard.bld_bildng_age_emd_month
+			where 1=1
+			and emd_nm = #{admNm}
+			AND base_mon <![CDATA[<=]]> #{eDate} 
+			ORDER BY base_mon
+		) aa
+		where rn <![CDATA[<=]]>  12
+	</select>
+
+	<!-- 법정동별 실거래 현황 매매-->
+	<select id="bldEmdTrde" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldEmdTrde */
+		SELECT 	cntrct_mt as base_mon
+			,	emd_cd
+			,	emd_nm as "name"
+			,	tot_cnt as "y"
+		FROM dashboard.bld_${emdName}_trde_emd_month
+		WHERE 1=1
+		AND emd_nm not in ('여수시')
+		AND cntrct_mt = (SELECT max(cntrct_mt) FROM dashboard.bld_apt_trde_emd_month WHERE cntrct_mt <![CDATA[<=]]> #{eDate} AND emd_nm not in ('여수시'))
+	</select>
+
+	<!-- 법정동별 실거래 현황 전월세 -->
+	<select id="bldEmdRent" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldEmdRent */
+		SELECT 	cntrct_mt as base_mon
+			,	emd_nm as "name"
+			,	mtht_cnt as "월세"
+			,	lfsts_cnt as "전세"
+		FROM dashboard.bld_${emdName}_rent_emd_month
+		WHERE 1=1
+		AND emd_nm not in ('여수시')
+		AND cntrct_mt = (SELECT max(cntrct_mt) FROM dashboard.bld_apt_rent_emd_month WHERE cntrct_mt <![CDATA[<=]]> #{eDate} AND emd_nm not in ('여수시'))
+	</select>
+
+	<!-- 노후건축물 비율 -->
+	<select id="bldOldRatio" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.bldOldRatio */
+		WITH temp1 as
+		(
+			SELECT base_mon
+				, emd_cd , emd_nm
+				, above20 , tot_val , rate
+				, ROW_NUMBER() OVER( ORDER BY base_mon desc) rn
+			FROM dashboard.bld_bildng_age_emd_month
+			WHERE emd_nm = #{admNm}
+			AND base_mon <![CDATA[<=]]> #{eDate}
+		)
+		SELECT	to_char(to_date(base_mon, 'yyyymm'),'yyyy-mm' ) as name
+			,	rate as y
+			,	base_mon
+		FROM temp1
+		WHERE rn%3 = 1
+		LIMIT 4
+	</select>
+
+	<!-- 112 긴급출동 지원 -->
+	<select id="policeMove" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.policeMove */
+		SELECT 	(SELECT max(substring(occurrence_de, 1, 6)) as base_mon FROM dashboard.cmyn_smartcity_day WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate})
+			,	to_char(to_date(substring(occurrence_de, 1, 6), 'yyyymm'),'yyyy.mm') as "seriesName"
+			,	substring(occurrence_de, 7, 8 ) as "name"
+			,	ty1cnt as "y"
+		FROM dashboard.cmyn_smartcity_day
+		WHERE 1=1
+		AND substring(occurrence_de, 1, 6) in (	SELECT distinct(substring(occurrence_de, 1, 6)) as base_date
+												FROM dashboard.cmyn_smartcity_day
+												WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate}
+												ORDER BY base_date DESC
+												LIMIT 2)
+	</select>
+
+	<!-- 119 긴급출동 지원 -->
+	<select id="fireMove" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.fireMove */
+		SELECT 	(SELECT max(substring(occurrence_de, 1, 6)) as base_mon FROM dashboard.cmyn_smartcity_day WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate})
+			,	to_char(to_date(substring(occurrence_de, 1, 6), 'yyyymm'),'yyyy.mm') as "seriesName"
+			,	substring(occurrence_de, 7, 8 ) as "name"
+			,	ty2cnt as "y"
+		FROM dashboard.cmyn_smartcity_day
+		WHERE 1=1
+		AND substring(occurrence_de, 1, 6) in (	SELECT distinct(substring(occurrence_de, 1, 6)) as base_date
+												FROM dashboard.cmyn_smartcity_day
+												WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate}
+												ORDER BY base_date DESC
+												LIMIT 2)
+	</select>
+
+	<!-- 112 종합상황실 긴급영상지원 -->
+	<select id="policeVideo" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.policeVideo */
+		SELECT 	(SELECT max(substring(occurrence_de, 1, 6)) as base_mon FROM dashboard.cmyn_smartcity_day WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate})
+			,	to_char(to_date(substring(occurrence_de, 1, 6), 'yyyymm'),'yyyy.mm') as "seriesName"
+			,	substring(occurrence_de, 7, 8 ) as "name"
+			,	ty3cnt as "y"
+		FROM dashboard.cmyn_smartcity_day
+		WHERE 1=1
+		AND substring(occurrence_de, 1, 6) in (	SELECT distinct(substring(occurrence_de, 1, 6)) as base_date
+												FROM dashboard.cmyn_smartcity_day
+												WHERE substring(occurrence_de, 1, 6) <![CDATA[<=]]> #{eDate}
+												ORDER BY base_date DESC
+												LIMIT 2)
+	</select>
+
+	<!-- 스마트시티 이벤트 발생 증감현황-->
+	<select id="smartCityYoY" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.smartCityYoY */
+		WITH smart_month as(
+			SELECT	occrrnc_mt as base_mon
+				,	coalesce(ty1, 0) as "policeVideo"
+				,	coalesce(abs(lag(ty1) over(order by occrrnc_mt) - ty1), 0) as plma_pv
+				,	coalesce(round(100 * (ty1- lag(ty1) over(order by occrrnc_mt))/ (case when lag(ty1) over(order by occrrnc_mt) = 0 then 1 else lag(ty1) over(order by occrrnc_mt) end), 2), 0) as growth_pv
+				,	coalesce(ty2, 0) as "policeMove"
+				,	coalesce(abs(lag(ty2) over(order by occrrnc_mt) - ty2), 0) as plma_pm
+				,	coalesce(round(100 * (ty2- lag(ty2) over(order by occrrnc_mt))/ (case when lag(ty2) over(order by occrrnc_mt) = 0 then 1 else lag(ty2) over(order by occrrnc_mt) end), 2), 0) as growth_pm
+				,	coalesce(ty3, 0) as "fireMove"
+				,	coalesce(abs(lag(ty3) over(order by occrrnc_mt) - ty3), 0) as plma_fm
+				,	coalesce(round(100 * (ty3- lag(ty3) over(order by occrrnc_mt))/ (case when lag(ty3) over(order by occrrnc_mt) = 0 then 1 else lag(ty3) over(order by occrrnc_mt) end), 2), 0) as growth_fm
+			FROM dashboard.cmyn_smartcity_month
+			WHERE 1=1
+			AND adm_cd = #{admCd}
+		)
+		SELECT *
+		FROM smart_month
+		WHERE base_mon <![CDATA[<=]]> #{eDate}
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!-- 교통사고 사고건수 현황 -->
+	<!-- <select id="tyYear" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.tyYear */
+		select base_year
+			,	acdnt as "name"
+			,	sum(${name}) as "y"
+		from dashboard.tfcacd_ty_year
+		where 1=1
+		and base_year = (select max(base_year) from dashboard.tfcacd_ty_year)
+		group by base_year, acdnt
+	</select> -->
+
+	<!-- 교통사고 사고건수 현황 테이블 -->
+	<!-- <select id="tyYearTable" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.tyYearTable */
+		SELECT
+			base_year
+			, acdnt
+			, death
+			, serinj
+			, ordnr
+			, inj
+			, lgz_acdnt
+			, imprtn_pasngr
+			, imprtn_frght
+		FROM dashboard.tfcacd_ty_year tty
+		WHERE base_year = (select max(base_year) from dashboard.tfcacd_ty_year tty2)
+		ORDER BY base_year  desc
+	</select> -->
+
+	<!-- 교통약자 사고 다발지점 현황 -->
+	<!-- <select id="tyArea" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.tyArea */
+		select 	base_year
+			,	adm_cd as "hiddenValue"
+			,	adm_nm as "name"
+			,	sum(occrrnc_cnt) as "y"
+		from dashboard.tfcacd_ty_area_year
+		where 1=1
+		and base_year = (select max(base_year) from dashboard.tfcacd_ty_area_year)
+		and adm_cd is not null
+		and adm_nm is not null
+		<if test="ty != null ">
+		AND ty = #{ty}
+		</if>
+		<if test='ty == null or ty == "" '>
+		AND ty = '노약자'
+		</if>
+		group by adm_cd, adm_nm, base_year
+		order by adm_cd
+	</select> -->
+
+	<!-- 지자체별 교통안전 현황 -->
+	<!-- <select id="trafficSafety" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.trafficSafety */
+		select 	base_year
+			,	occrrnc_cnt as "발생건수"
+			,	caslt_cnt as "사상자수"
+			,	occrrnc_popltn as "인구 만명당사고"
+			,	occrrnc_car as "차 만대당사고"
+			,	caslt_popltn as "인구 만명당사상자"
+			,	caslt_car as "차 만대당사상자"
+			,	caslt_road as "도로 사상자"
+		from dashboard.tfcard_acdnt_idx_year
+		where 1=1
+		and base_year = (select max(base_year) from dashboard.tfcard_acdnt_idx_year)
+	</select> -->
+
+	<!-- 스마트시티 이벤트 차트로 보기 -->
+	<select id="smartChart" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.smartChart */
+		SELECT 	to_char(to_date(occrrnc_mt, 'yyyymm'),'yyyy-mm' ) as "seriesName"
+			,	sum(ty1) as "112영상지원"
+			,	sum(ty2) as "112긴급출동"
+			,	sum(ty3) as "119긴급출동"
+		FROM dashboard.cmyn_smartcity_month
+		WHERE 1=1
+        AND adm_cd= #{admCd}
+        AND occrrnc_mt <![CDATA[<=]]> #{eDate}
+		GROUP BY "seriesName"
+		ORDER BY "seriesName" DESC
+		LIMIT 2
+	</select>
+
+	<!-- 스마트시티 요일별 -->
+	<select id="smartChartWeek" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+		/* dongjak.dashboard.DashboardDAO.smartChartWeek */
+<!-- 			SELECT 	occurrence_mt
+				,	ty1_cnt_1 as "112 종합상황실긴급영상지원 서비스 발생건수"
+				,	ty2_cnt_1 as "112 긴급출동 지원 서비스 발생건수"
+				,	ty3_cnt_1 as "119 긴급출동 지원 서비스 발생건수"
+			FROM(
+					SELECT occurrence_mt , ty1_cnt_1, ty2_cnt_1, ty3_cnt_1 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_2, ty2_cnt_2, ty3_cnt_2 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_3, ty2_cnt_3, ty3_cnt_3 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_4, ty2_cnt_4, ty3_cnt_4 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_5, ty2_cnt_5, ty3_cnt_5 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_6, ty2_cnt_6, ty3_cnt_6 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+					union all
+					SELECT occurrence_mt , ty1_cnt_7, ty2_cnt_7, ty3_cnt_7 FROM dashboard.cmyn_smartcity_month_dy WHERE adm_cd = #{admCd} AND occurrence_mt <![CDATA[<=]]> #{eDate}
+			) t1
+			WHERE occurrence_mt = (SELECT max(occurrence_mt) FROM dashboard.cmyn_smartcity_month_dy WHERE occurrence_mt <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd}) -->
+			
+			SELECT	occurrence_mt as base_mon
+				,	"seriesName"
+				,	"월", "화", "수", "목", "금", "토", "일"
+			FROM 
+			(
+				SELECT occurrence_mt
+					,	'112 종합상황실긴급영상지원 서비스 발생건수' as "seriesName"
+					,	ty1_cnt_1 as "월"
+					,	ty1_cnt_2 as "화"
+					,	ty1_cnt_3 as "수"
+					,	ty1_cnt_4 as "목" 
+					,	ty1_cnt_5 as "금"
+					,	ty1_cnt_6 as "토"
+					,	ty1_cnt_7 as "일"
+				FROM dashboard.cmyn_smartcity_month_dy
+				WHERE adm_cd = #{admCd}
+				union all
+				SELECT occurrence_mt
+					,	'112 긴급출동 지원 서비스 발생건수' as "seriesName"
+					,	ty2_cnt_1 as "월"
+					,	ty2_cnt_2 as "화"
+					,	ty2_cnt_3 as "수"
+					,	ty2_cnt_4 as "목" 
+					,	ty2_cnt_5 as "금"
+					,	ty2_cnt_6 as "토"
+					,	ty2_cnt_7 as "일"
+				FROM dashboard.cmyn_smartcity_month_dy
+				WHERE adm_cd = #{admCd}
+				union all
+				SELECT occurrence_mt
+					,	'119 긴급출동 지원 서비스 발생건수' as "seriesName"
+					,	ty3_cnt_1 as "월"
+					,	ty3_cnt_2 as "화"
+					,	ty3_cnt_3 as "수"
+					,	ty3_cnt_4 as "목" 
+					,	ty3_cnt_5 as "금"
+					,	ty3_cnt_6 as "토"
+					,	ty3_cnt_7 as "일"
+				FROM dashboard.cmyn_smartcity_month_dy
+				WHERE adm_cd = #{admCd}
+			) T1
+			WHERE 1=1
+			AND occurrence_mt = (SELECT max(occurrence_mt) FROM dashboard.cmyn_smartcity_month_dy WHERE occurrence_mt <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd})
+	</select>
+
+	<!-- 스마트시티 시간별 -->
+	<select id="smartCityTime" resultType="java.util.LinkedHashMap" parameterType="hashmap">
+	/* dongjak.dashboard.DashboardDAO.smartCityDay */
+		SELECT	occrrnc_mt as "base_mon"
+			,	tmzon1 as "0시~6시"
+			,	tmzon2 as "6시~9시"
+			,	tmzon3 as "9시~12시"
+			,	tmzon4 as "12시~17시"
+			,	tmzon5 as "17시~20시"
+			,	tmzon6 as "20~24시"
+		FROM dashboard.cmyn_smartcity_month
+		WHERE 1=1
+		AND adm_cd = #{admCd}
+		AND occrrnc_mt <![CDATA[<=]]> #{eDate}
+		ORDER BY base_mon DESC
+		LIMIT 1
+	</select>
+
+	<!-- 스마트시티 월별 -->
+	<select id="smartCityMonth" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.smartCityMonth */
+		SELECT	occrrnc_mt as base_mon
+			,	to_char(to_date(occrrnc_mt, 'yyyymm'),'yyyy-mm') as "name"
+			,	ty1 as "112 종합상황실긴급영상지원 서비스"
+			,	ty2 as "112 긴급출동 지원 서비스"
+			,	ty3 as "119 긴급출동 지원 서비스"
+		FROM dashboard.cmyn_smartcity_month
+		WHERE adm_cd = #{admCd}
+		AND occrrnc_mt <![CDATA[<=]]> #{eDate}
+	</select>
+
+	<!-- 스마트시티 행정동별 -->
+	<select id="smartCityAdm" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.smartCityAdm */
+		SELECT	adm_nm as "name"
+			,	ty1 as "112 종합상황실긴급영상지원 서비스"
+			,	ty2 as "112 긴급출동 지원 서비스"
+			,	ty3 as "119 긴급출동 지원 서비스"
+			,	occrrnc_mt as "base_mon"
+		FROM dashboard.cmyn_smartcity_month
+		WHERE 1=1
+		AND occrrnc_mt = (SELECT max(occrrnc_mt) FROM dashboard.cmyn_smartcity_month WHERE occrrnc_mt <![CDATA[<=]]> #{eDate} AND adm_cd not in ('36020', '3602000'))
+		AND adm_cd not in ('36020', '3602000')
+	</select>
+
+	<!-- 지역경제 전년대비 매출비율 증감율 -->
+	<select id="yearSalesRatio" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.yearSalesRatio */
+		SELECT *
+			,	(SELECT max(base_mon) FROM dashboard.kcb_soho_adm_qu WHERE adm_cd = #{admCd} AND base_mon  <![CDATA[<=]]> #{eDate}) as base_mon
+		FROM (
+			SELECT
+				base_mon  as name,
+				mrv0004_7_cnt as "30% 이상",
+				mrv0004_6_cnt as "20% 이상 30% 미만",
+				mrv0004_5_cnt as "10% 이상 20% 미만",
+				mrv0004_4_cnt as "-10% 이상 10% 미만",
+				mrv0004_3_cnt as "-20% 이상 -10% 미만",
+				mrv0004_2_cnt as "-30% 이상 -20% 미만",
+				mrv0004_1_cnt as "-30% 미만"
+			FROM dashboard.kcb_soho_adm_qu
+			WHERE adm_cd = #{admCd}
+			AND base_mon <![CDATA[<=]]> #{eDate}
+			ORDER BY name DESC
+			LIMIT 10
+		) T1
+		ORDER BY name
+	</select>
+
+	<!-- 분기별 장기-단기 연체자수 -->
+	<select id="delinquent" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.delinquent */
+		SELECT *
+			,	(SELECT max(base_mon) FROM dashboard.kcb_soho_adm_qu WHERE adm_cd = #{admCd} AND base_mon <![CDATA[<=]]> #{eDate}) as base_mon
+		FROM (
+			SELECT
+				base_mon as name,
+				md00001 as "단기 이상 연체자 수(대출 혹은 카드) 5영업일, 10만원 이상 연체자 수",
+				md00003 as "장기 이상 연체자 수(대출 혹은 카드) 90일 이상 연체자 수"
+			FROM dashboard.kcb_soho_adm_qu
+			WHERE adm_cd = #{admCd}
+			AND base_mon <![CDATA[<=]]> #{eDate}
+			ORDER BY name DESC
+			LIMIT 10
+		) T1
+		ORDER BY name
+	</select>
+
+	<!-- 분기별 평균매출그룹 업체수 -->
+	<select id="avgSales" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.avgSales */
+		<!-- SELECT *
+		FROM (
+			SELECT
+				base_mon as name,
+				mrv0001_1_cnt as "평균 연매출 4천만 미만",
+				mrv0001_2_cnt as "평균 연매출 4천만원 이상 1억 미만",
+				mrv0001_3_cnt as "평균 연매출 1억 이상 2억 미만",
+				mrv0001_4_cnt as "평균 연매출 2억 이상 5억 미만",
+				mrv0001_5_cnt as "평균 연매출 5억 이상 10억 미만",
+				mrv0001_6_cnt as "평균 연매출 10억 이상"
+			FROM dashboard.kcb_soho_adm_qu ksaq
+			WHERE adm_cd = #{admCd}
+			AND base_mon <![CDATA[<=]]> #{eDate}
+			ORDER BY name DESC
+			LIMIT 10
+		) T1
+		ORDER BY name -->
+		
+		SELECT	*
+			,	(SELECT MAX(base_mon) FROM dashboard.kcb_soho_adm_qu WHERE base_mon  <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd}) as base_mon
+		FROM (
+			SELECT	base_mon as name
+				,	'평균 연매출 4천만 미만' as "seriesName"
+				,	mrv0001_1_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon as name
+				,	'평균 연매출 4천만원 이상 1억 미만' as "seriesName"
+				,	mrv0001_2_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon as name
+				,	'평균 연매출 1억 이상 2억 미만' as "seriesName"
+				,	mrv0001_3_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon as name
+				,	'평균 연매출 2억 이상 5억 미만' as "seriesName"
+				,	mrv0001_4_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon as name
+				,	'평균 연매출 5억 이상 10억 미만' as "seriesName"
+				,	mrv0001_5_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon as name
+				,	'평균 연매출 10억 이상' as "seriesName"
+				,	mrv0001_6_cnt as y
+				,	adm_cd
+			FROM dashboard.kcb_soho_adm_qu
+		) T1
+		WHERE adm_cd = #{admCd}
+		AND name IN (SELECT base_mon FROM dashboard.kcb_soho_adm_qu WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd = #{admCd} LIMIT 10)
+	</select>
+
+	<!-- 행정동별 업종별 운영업체 수 -->
+	<select id="admByInduty" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.admByInduty */
+		SELECT	base_mon
+			,	name
+			,	"seriesName"
+			,	"y"
+		FROM(
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'농업, 임업 및 어업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_a as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_a as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'제조업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_c as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_c as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'전기, 가스, 증기 및 공기 조절 공급업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_d as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_d as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'건설업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_f as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_f as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'도매 및 소매업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_g as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_g as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'운수 및 창고업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_h as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_h as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'숙박 및 음식점업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_i as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_i as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'정보통신업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_j as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_j as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'금융 및 보험업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_k as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_k as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'부동산업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_l as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_l as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'전문, 과학 및 기술 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_m as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_m as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'사업시설 관리, 사업 지원 및 임대 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_n as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_n as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'교육 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_p as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_p as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'보건업 및 사회복지 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_q as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_q as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'예술, 스포츠 및 여가관련 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_r as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_r as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm as name
+				,	'협회 및 단체, 수리 및 기타 개인 서비스업' as "seriesName"
+				<if test='indType == "cnt"'>,	msm0001_s as "y"</if>
+				<if test='indType != "cnt"'>,	quarter_rvn_amt_s as "y"</if>
+			FROM dashboard.kcb_soho_adm_induty_qu
+		) as t1
+		WHERE base_mon = (SELECT max(base_mon) FROM dashboard.kcb_soho_adm_induty_qu WHERE base_mon <![CDATA[<=]]> #{eDate})
+	</select>
+
+	<!-- 행정동별 장기-단기 대출 연체자 수 -->
+	<select id="admOverdue" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.admOverdue */
+		SELECT	base_mon
+			,	adm_nm as name
+			,	md00001 as "단기 이상 연체자 (대출 혹은 카드)"
+			,	md00003 as "장기 이상 연체자 (대출 혹은 카드)"
+		FROM dashboard.kcb_soho_adm_qu
+		WHERE base_mon = (SELECT max(base_mon) FROM dashboard.kcb_soho_adm_qu WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd not in ('36020'))
+		AND adm_cd not in ('36020')
+	</select>
+
+	<!-- 행정동별 1년전 대비 추정연매출 증감률 -->
+	<select id="yearSalse" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+	/* dongjak.dashboard.DashboardDAO.yearSalse */
+		SELECT	base_mon
+			,	adm_nm as name
+			,	"seriesName"
+			,	y
+		FROM(
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'-30% 미만' as "seriesName"
+				,	mrv0004_1_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'-30%  이상 -20% 미만' as "seriesName"
+				,	mrv0004_2_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'-20% 이상 -10% 미만' as "seriesName"
+				,	mrv0004_3_cnt as "y"
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'-10% 이상 10% 미만' as "seriesName"
+				,	mrv0004_4_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'10%이상 20% 미만' as "seriesName"
+				,	mrv0004_5_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'20%이상 30% 미만' as "seriesName"
+				,	mrv0004_6_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+			union all
+			SELECT	base_mon
+				,	adm_nm
+				,	adm_cd
+				,	'30%이상' as "seriesName"
+				,	mrv0004_7_cnt as y
+			FROM dashboard.kcb_soho_adm_qu
+		) t1
+		WHERE 1=1
+		AND adm_cd not in ('36020')
+		AND base_mon = (SELECT max(base_mon) FROM dashboard.kcb_soho_adm_qu WHERE base_mon <![CDATA[<=]]> #{eDate} AND adm_cd not in ('36020'))
+	</select>
+	
+	<!-- 레이아웃 정렬 -->
+    <!-- <select id="getLayout" resultType="hashmap">
+    /* dongjak.admin.AdminDashboardDAO.getLayout */
+    	select trgt_div, vis_index from base.dashboard_vis dv where trgt_scrin = #{vis_cate} and vis_index is not null order by vis_index desc
+    </select> -->
+    <select id="layout" resultType="hashmap">
+    /* dongjak.admin.AdminDashboardDAO.layout */
+    	select vis_sort,vis_index from base.dashboard_vis where trgt_scrin = #{trgt_scrin} and vis_index is not null and use_at = 'Y' group by vis_index, vis_sort order by vis_index asc
+    </select>
+	
+	<!-- 업종별 카드 사용 비율 -->
+	<select id="cardRate" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		SELECT	base_mon
+			,	biz_nm_g as name
+			,	rate_amt as "사용금액 비율"
+			,	rate_cnt as "사용건수 비율"
+		FROM dashboard.area_card_adm_month
+		WHERE base_mon = (SELECT max(base_mon) FROM dashboard.area_card_adm_month WHERE base_mon <![CDATA[<=]]> #{eDate})
+	</select>
+
+
+
+</mapper>
+
+
+

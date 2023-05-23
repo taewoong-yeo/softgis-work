@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.series.AdminSeriesDAO">
+	
+	<select id="getSeriesGroups" resultType="hashmap">
+	 	/* dongjak.admin.gpcd.AdminGpcdDAO.getSeriesGroups */
+		SELECT * 
+		  FROM base.series_mngr
+		 WHERE grp_cd is null
+		 ORDER BY cod_idx ASC
+	</select>
+	
+	<select id="getSeriesGroup" resultType="hashmap">
+	 	/* dongjak.admin.gpcd.AdminGpcdDAO.getSeriesGroup */
+		SELECT * 
+		  FROM base.series_mngr
+		 WHERE cod_cd = #{cod_cd}
+	</select>
+	
+	<select id="checkSeriesGroupCollision" resultType="boolean">
+	 	/* dongjak.admin.series.AdminSeriesDAO.checkSeriesGroupCollision */
+		SELECT (COUNT(*) > 0)
+   		  FROM base.series_mngr
+		 WHERE grp_cd = #{cod_cd}
+		   AND grp_cd is not null
+	</select>
+	
+	<select id="getSeries" resultType="hashmap">
+	 	/* dongjak.admin.series.AdminSeriesDAO.getSeries */		
+		WITH RECURSIVE list(cod_cd ,grp_cd, cod_nm, cod_desc, cod_idx, use_stat, path) as (
+		 SELECT cod_cd
+		     , grp_cd
+		     , cod_nm
+		     , cod_desc
+		     , cod_idx
+		     , use_stat  
+		     , cod_cd
+		  FROM base.series_mngr
+		 WHERE grp_cd is null
+		 UNION ALL
+		 SELECT e.cod_cd
+		     , e.grp_cd
+		     , e.cod_nm
+		     , e.cod_desc
+		     , e.cod_idx
+		     , e.use_stat 
+		     , l.path
+		  FROM base.series_mngr e, list l
+		 WHERE e.grp_cd = l.cod_cd
+		)
+		SELECT s.cod_cd
+		     , s.grp_cd
+		     , s.cod_nm
+		     , s.cod_desc
+		     , s.cod_idx
+		     , s.use_stat 
+		     , (SELECT cod_nm FROM base.series_mngr WHERE cod_cd = s.grp_cd) grp_nm
+		 FROM list s
+		ORDER BY s.path, grp_cd DESC, cod_idx;
+	</select>
+	
+	<select id="checkSeriesCollision" resultType="string">
+	 	/* dongjak.admin.series.AdminSeriesDAO.checkSeriesCollision */
+		SELECT 
+			   cod_cd
+   		  FROM base.series_mngr
+		 WHERE cod_cd = #{cod_cd}
+ 		   AND cod_cd != #{cod_cd_old}
+	</select>
+	
+	<select id="checkSeriesNameCollision" resultType="string">
+	 	/* dongjak.admin.series.AdminSeriesDAO.checkSeriesNameCollision */
+		SELECT 
+			   cod_nm
+   		  FROM base.series_mngr
+		 WHERE cod_nm = #{cod_nm}
+ 		   AND cod_nm != #{cod_nm_old}
+	</select>
+	
+	<insert id="insertSeries">
+		/* dongjak.admin.series.AdminSeriesDAO.insertSeries*/
+		INSERT
+		  INTO base.series_mngr (
+		  	   grp_cd
+		  	   , cod_cd
+		  	   , cod_nm
+		  	   , cod_desc
+		  	   , cod_idx
+		  	   , use_stat   		  	   
+		) VALUES (
+				CASE WHEN TRIM(#{grp_cd})='' THEN NULL ELSE #{grp_cd}  END
+				, #{cod_cd}				
+				, #{cod_nm}
+				, #{cod_desc}
+				, 1 + COALESCE((SELECT MAX(cod_idx) FROM base.series_mngr
+								GROUP BY grp_cd HAVING grp_cd = #{grp_cd}), 0)
+				, #{use_stat}
+		)
+	</insert>
+	
+	<update id="updateSeries">
+		/* dongjak.admin.series.AdminSeriesDAO.updateSeries */
+		UPDATE
+			   base.series_mngr
+		   SET
+			   grp_cd = CASE WHEN TRIM(#{grp_cd})='' THEN NULL ELSE #{grp_cd}  END
+			   , cod_nm = #{cod_nm}
+			   , cod_desc = #{cod_desc}
+			   , use_stat = #{use_stat}
+		 WHERE cod_cd = #{cod_cd}
+	</update>
+
+	<update id="updateSeriesIndex">
+		/* dongjak.admin.series.AdminSeriesDAO.updateSeriesIndex */
+		WITH src AS (
+						SELECT cod_cd, cod_idx 
+						  FROM base.series_mngr b 
+						 WHERE b.cod_cd = #{cod_cd} 
+						   AND b.grp_cd = #{grp_cd}),
+		     dst AS (
+		     			SELECT cod_cd, cod_idx 
+		     			  FROM base.series_mngr c 
+		     			 WHERE c.cod_idx = #{cod_idx}::INTEGER
+		     			   AND c.grp_cd = #{grp_cd} limit 1)
+		UPDATE base.series_mngr a
+		   SET cod_idx = CASE WHEN a.cod_cd = b.cod_cd 
+		   					  THEN #{cod_idx}::INTEGER ELSE b.cod_idx END
+		  FROM src b
+		 WHERE a.cod_cd = b.cod_cd
+		    OR a.cod_cd = (SELECT cod_cd FROM dst);
+	</update>
+	
+	<delete id="deleteSeries">
+		/* dongjak.admin.series.AdminSeriesDAO.deleteSeries */
+		DELETE
+		  FROM base.series_mngr
+		 WHERE cod_cd = #{cod_cd}
+	</delete>
+	
+	<delete id="deleteSeriesGroupChain">
+		/* dongjak.admin.data.AdminGpcdDAO.deleteSeriesGroupChain */
+		DELETE
+		  FROM base.series_mngr
+		 WHERE grp_cd = #{cod_cd}
+		   AND grp_cd is not null
+	</delete>
+</mapper>

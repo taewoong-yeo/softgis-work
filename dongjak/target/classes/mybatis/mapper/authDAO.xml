@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.auth.AuthDAO">
+	
+	<select id="getUser" resultType="dongjak.auth.UserVO">
+	 	/* dongjak.auth.AuthDAO.getUser */
+		SELECT usr_id
+			   , usr_dpt
+			   , usr_nm
+			   , usr_pwd
+			   , usr_phone
+			   , usr_perm
+			   , app_stat
+			   , use_stat
+   		  FROM base.usr_mngr
+		 WHERE usr_id = #{usr_id}
+		   AND usr_pwd = #{usr_pwd}
+		   AND use_stat = 'Y'
+	</select>
+
+	<insert id="insertUser" parameterType="hashmap">
+	 	/* dongjak.auth.AuthDAO.insertUser */
+		INSERT
+		  INTO base.usr_mngr (
+			   usr_id
+			   , usr_dpt
+			   , usr_nm
+			   , usr_pwd
+			   , usr_phone
+			   , usr_perm
+			   , app_stat
+			   , use_stat
+		  ) VALUES (
+			   #{usr_id}
+			   , #{usr_dpt}
+			   , #{usr_nm}
+			   , #{usr_pwd}
+			   , #{usr_phone}
+			   , 'NUSR'
+			   , 'N'
+			   , 'Y'
+		  )
+	</insert>
+	
+	<select id="registerCollisionCheck" resultType="string">
+	 	/* dongjak.auth.AuthDAO.registerCollisionCheck */
+		SELECT usr_id
+   		  FROM base.usr_mngr
+		 WHERE usr_id = #{usr_id}
+	</select>
+	
+	<update id="updateUser" parameterType="hashmap">
+		/* dongjak.auth.AuthDAO.updateUser */
+			UPDATE 
+			       base.usr_mngr
+			   SET
+			       usr_dpt = #{usr_dpt}
+			       , usr_nm = #{usr_nm}
+			       , usr_phone = #{usr_phone}
+			       <if test="usr_pwd != null and not usr_pwd.equals('')">
+			       , usr_pwd = #{usr_pwd}
+			       </if>
+			 WHERE usr_id = #{usr_id}
+	</update>
+	
+</mapper>

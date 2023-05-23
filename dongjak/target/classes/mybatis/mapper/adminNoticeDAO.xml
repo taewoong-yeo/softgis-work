@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.admin.notice.AdminNoticeDAO">
+	
+	<select id="getNotices" resultType="hashmap">
+	 	/* dongjak.admin.notice.AdminNoticeDAO.getNotices */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.noti_no
+			   , a.noti_type
+			   , a.noti_title
+			   , a.noti_content
+			   , a.post_date
+			   , a.post_term
+			   , a.att_file_no
+			   , b.file_nm_local as att_file_nm
+			   , c.cod_nm AS noti_type_nm
+			   , CONVERT_FROM(a.img_blob, 'utf-8') AS img_blob
+			   , CASE WHEN a.post_term  = 0 THEN '무기한' ELSE a.post_term || '일' END AS post_term_nm 
+		  FROM ( base.noti_mngr a
+		  		 LEFT JOIN base.file_mngr b ON a.att_file_no = b.file_no )
+			   , cte_code c
+		 WHERE a.noti_type = c.cod_cd
+		 ORDER BY (CASE WHEN a.noti_type = 'FIX' THEN 1 ELSE 2 END) ASC
+		 		  , a.noti_no DESC
+	</select>
+	
+	<select id="getNotice" resultType="hashmap">
+	 	/* dongjak.admin.notice.AdminNoticeDAO.getNotice */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.noti_no
+			   , a.noti_type
+			   , a.noti_title
+			   , a.noti_content
+			   , a.post_date
+			   , a.post_term
+			   , a.att_file_no
+			   , b.file_nm_local as att_file_nm
+			   , c.cod_nm AS noti_type_nm
+			   , CONVERT_FROM(a.img_blob, 'utf-8') AS img_blob
+			   , CASE WHEN a.post_term  = 0 THEN '무기한' ELSE a.post_term || '일' END AS post_term_nm 
+		  FROM ( base.noti_mngr a
+		  		 LEFT JOIN base.file_mngr b ON a.att_file_no = b.file_no )
+			   , cte_code c
+		 WHERE a.noti_type = c.cod_cd
+		   AND a.noti_no = #{noti_no}::integer
+	</select>
+	
+	<insert id="insertNotice" parameterType="hashmap">
+		/* dongjak.admin.notice.AdminNoticeDAO.insertNotice */
+		INSERT 
+		  INTO base.noti_mngr (
+			noti_type
+			, noti_title
+			, post_date 
+			, post_term
+			, att_file_no
+			<if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>, noti_content</if>
+			<if test='noti_type.equals("POP")'>, img_blob</if>
+			
+		  ) VALUES (
+		  	#{noti_type}
+		  	, #{noti_title}
+		  	, #{post_date}
+		  	, #{post_term}::integer
+			, #{att_file_no}
+			<if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>, #{noti_content}</if>
+			<if test='noti_type.equals("POP")'>, #{img_blob}::bytea</if>
+		  )
+	</insert>
+	
+	<update id="updateNotice" parameterType="hashmap">
+		/* dongjak.admin.notice.AdminNoticeDAO.updateNotice */
+		UPDATE 
+		       base.noti_mngr
+		   SET
+       		   noti_type = #{noti_type}
+			   , noti_title = #{noti_title}
+			   , post_date = #{post_date}
+			   , post_term = #{post_term}::integer
+			   <if test='att_file_no != null'>
+				   , att_file_no = #{att_file_no}
+			   </if>
+			   <if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>
+				   , noti_content = #{noti_content}
+				   , img_blob = null
+			   </if>
+			   <if test='noti_type.equals("POP")'>
+				   , noti_content = null
+				   <if test='img_blob != null'>, img_blob = #{img_blob}::bytea</if>
+			   </if>
+		 WHERE noti_no = #{noti_no}::integer
+	</update>
+	
+	<delete id="deleteNotice">
+		/* dongjak.admin.notice.AdminNoticeDAO.deleteNotice */
+		DELETE 
+		  FROM base.noti_mngr 
+		 WHERE noti_no = #{noti_no}::integer;
+	</delete>
+	
+	<update id="deleteNoticeAttachment">
+		/* dongjak.admin.notice.AdminNoticeDAO.deleteNoticeAttachment */
+		UPDATE base.noti_mngr
+		   SET att_file_no = null
+		 WHERE noti_no = #{noti_no}::integer;
+	</update>
+	
+</mapper>

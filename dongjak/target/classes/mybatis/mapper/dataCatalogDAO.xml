@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dongjak.catalog.DataCatalogDAO">
+	
+	<sql id="schemaName">data_catalog</sql>
+	<sql id="schemaValue">'data_catalog'</sql>
+	
+	<select id="getMetadatas" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getMetadatas */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , a.mta_tbl
+			   , a.mta_cat
+			   , a.mta_dept
+			   , a.mta_remark
+			   , b.cod_nm AS mta_cat_nm
+			   , c.cod_nm AS mta_fcly_nm
+			   , e.cod_nm AS mta_gther_nm
+			   , MAX(d.data_date) AS mta_upt_date
+			   , a.use_stat
+		  FROM base.mta_data a
+		  	   , base.mta_data_tbl d
+		       , cte_code b
+		       , cte_code c
+		       , cte_code e
+		 WHERE 1 = 1
+		   AND a.mta_cd = d.mta_cd
+		   AND a.mta_cat = b.cod_cd
+		   AND a.mta_fcly = c.cod_cd
+		   AND a.mta_gther = e.cod_cd
+		   AND a.use_stat = 'Y'
+		   AND d.use_stat = 'Y'
+		   <if test="query != null">AND (a.mta_nm LIKE '%' || #{query} || '%' OR a.mta_desc LIKE '%' || #{query} || '%')</if>
+		   <if test="category != null">AND b.cod_nm = ANY(#{category,typeHandler=dongjak.core.MyBatisListTypeHandler})</if>
+		   <if test="cycle != null">AND c.cod_nm = ANY(#{cycle,typeHandler=dongjak.core.MyBatisListTypeHandler})</if>
+		   <if test="gather != null">AND e.cod_nm = ANY(#{gather,typeHandler=dongjak.core.MyBatisListTypeHandler})</if>
+		   <if test="source != null">AND a.mta_src = ANY(#{source,typeHandler=dongjak.core.MyBatisListTypeHandler})</if>
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm, e.cod_nm
+		 ORDER BY a.mta_idx ASC;
+	</select>
+	
+	<sql id="getMetadataOrderBy">ORDER BY d.data_date DESC</sql>
+	
+	<select id="getMetadata" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getMetadata */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   a.mta_cd
+			   , a.mta_nm
+			   , a.mta_desc
+			   , a.mta_src
+			   , a.mta_fcly
+			   , a.mta_gther
+			   , a.mta_url
+			   , a.mta_idx
+			   , a.mta_tbl
+			   , a.mta_cat
+			   , a.mta_dept
+			   , a.mta_remark
+			   , b.cod_nm AS mta_cat_nm
+			   , c.cod_nm AS mta_fcly_nm
+			   , e.cod_nm AS mta_gther_nm
+			   , a.use_stat
+			   , MAX(d.data_date) AS mta_upt_date
+			   , CASE WHEN a.mta_fcly = 'DCL_YEAR' THEN ARRAY_AGG(EXTRACT(YEAR FROM d.data_date::date) || '년' <include refid="getMetadataOrderBy" />)
+			   		  WHEN a.mta_fcly = 'DCL_HALF' THEN ARRAY_AGG(EXTRACT(YEAR FROM d.data_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM d.data_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기' <include refid="getMetadataOrderBy" />)
+			   		  WHEN a.mta_fcly = 'DCL_QUART' THEN ARRAY_AGG(TO_CHAR(d.data_date::date, 'YYYY년 Q분기') <include refid="getMetadataOrderBy" />)
+			   		  WHEN a.mta_fcly = 'DCL_MONTH' THEN ARRAY_AGG(TO_CHAR(d.data_date::date, 'YYYY년 MM월') <include refid="getMetadataOrderBy" />)
+			   		  WHEN a.mta_fcly = 'DCL_IRRE' THEN ARRAY_AGG(TO_CHAR(d.data_date::date, 'YYYY년 MM월 DD일') <include refid="getMetadataOrderBy" />)
+			   		  END AS mta_dates
+			   , ARRAY_AGG(d.data_tbl <include refid="getMetadataOrderBy" />) AS mta_tbls
+		  FROM base.mta_data a
+		  	   , base.mta_data_tbl d
+		       , cte_code b
+		       , cte_code c
+		       , cte_code e
+		 WHERE 1 = 1
+		   AND a.mta_nm = #{mta_nm}
+		   AND a.mta_cd = d.mta_cd
+		   AND a.mta_cat = b.cod_cd
+		   AND a.mta_fcly = c.cod_cd
+		   AND a.mta_gther = e.cod_cd
+		   AND a.use_stat = 'Y'
+		   AND d.use_stat = 'Y'
+		 GROUP BY a.mta_cd, b.cod_nm, c.cod_nm, e.cod_nm;
+	</select>
+	
+	<select id="getMetadataSources" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getMetadataSources */
+		WITH cte_code AS (SELECT * FROM base.com_code)
+		SELECT
+			   mta_src
+		  FROM base.mta_data
+		 WHERE 1 = 1
+		   AND use_stat = 'Y'
+		 GROUP BY mta_src
+		 ORDER BY mta_src;
+	</select>
+	
+	<select id="getData" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getData */
+	 	SELECT 
+			   b.mta_cd
+			   , b.mta_nm
+			   , a.data_tbl
+			   , a.data_date
+			   , a.use_stat
+			   , CASE WHEN b.mta_fcly = 'DCL_YEAR' THEN EXTRACT(YEAR FROM a.data_date::date) || '년'
+			   		  WHEN b.mta_fcly = 'DCL_HALF' THEN EXTRACT(YEAR FROM a.data_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM a.data_date::date) &lt;= 6 THEN '상' ELSE '하' END) || '반기'
+			   		  WHEN b.mta_fcly = 'DCL_QUART' THEN TO_CHAR(a.data_date::date, 'YYYY년 Q분기')
+			   		  WHEN b.mta_fcly = 'DCL_MONTH' THEN TO_CHAR(a.data_date::date, 'YYYY년 MM월')
+			   		  WHEN b.mta_fcly = 'DCL_IRRE' THEN TO_CHAR(a.data_date::date, 'YYYY년 MM월 DD일')
+			   		  END AS data_date_cvt			   
+	 	  FROM base.mta_data_tbl a
+			   , base.mta_data b
+	 	 WHERE a.data_tbl = #{data_tbl}
+	 	   AND a.mta_cd = b.mta_cd
+	</select>
+	
+	<select id="getDataCatalogSpecification" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogSpecification */
+	 	<![CDATA[
+		SELECT
+			PS.RELNAME AS tbl_nm
+			, PA.ATTNAME AS col_nm_org
+			, PD.DESCRIPTION AS col_nm_alias
+			, ISC.UDT_NAME AS col_type
+			, PA.ATTNUM AS col_idx
+			, (CASE WHEN PA.ATTNOTNULL THEN '' ELSE 'Y' END) AS col_notnull
+		FROM PG_STAT_ALL_TABLES PS
+		INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+		LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+		, INFORMATION_SCHEMA.COLUMNS ISC
+		WHERE PS.SCHEMANAME = 'data_catalog'
+			AND PS.RELNAME = #{tbl}
+			AND ISC.TABLE_NAME = PS.RELNAME
+			AND ISC.COLUMN_NAME = PA.ATTNAME
+		ORDER BY PA.ATTNUM ASC;
+		]]>
+	</select>
+	
+	<select id="getDataCatalogListData" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogListData */
+		SELECT *
+		  FROM data_catalog."${data_tbl}"
+		 LIMIT 1000;
+	</select>
+	
+	<select id="getDataCatalogListColumns" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogListColumns */
+	 	<![CDATA[
+	 	SELECT
+	 		a.col_nm_org
+	 		, COALESCE(a.col_nm_alias, a.col_nm_org) AS col_nm_alias
+ 		FROM (
+ 			SELECT
+ 				PA.ATTNAME AS col_nm_org
+ 				, PD.DESCRIPTION AS col_nm_alias
+ 				, PA.ATTNUM AS col_idx
+			FROM PG_STAT_ALL_TABLES PS
+			INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0
+			LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+			LEFT JOIN INFORMATION_SCHEMA.COLUMNS ISC ON PS.SCHEMANAME = ISC.TABLE_SCHEMA AND ISC.TABLE_NAME = PS.RELNAME AND ISC.COLUMN_NAME = PA.ATTNAME
+			WHERE PS.SCHEMANAME = 'data_catalog'
+				AND PS.RELNAME = #{data_tbl}
+		) a
+		ORDER BY a.col_idx ASC;
+		]]>
+	</select>
+	
+	<select id="getDataCatalogChartData" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogChartData */
+	 	SELECT
+	 		<foreach collection="vis_y" item="y" separator=", ">"${y}"</foreach>,
+	 		"${vis_x}"
+	 	  FROM data_catalog."${data_tbl}"
+	 	 WHERE 
+	 		<foreach collection="vis_y" item="y" separator=" AND ">"${y}" IS NOT NULL</foreach>
+	 		AND "${vis_x}" IS NOT NULL
+	 	 ORDER BY "${vis_o}"
+	 	 LIMIT 100;
+	</select>
+	
+	<select id="getDataCatalogChartColumns" resultType="hashmap">
+	 	/* dongjak.admin.data.AdminDataDAO.getDataCatalogChartColumns */
+	 	SELECT a.col_nm_org
+			 , COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+		  FROM (
+				SELECT PS.RELNAME AS tbl_nm
+					 , PA.ATTNAME AS col_nm_org
+					 , PD.DESCRIPTION AS col_nm_alias
+					 , ISC.UDT_NAME AS col_type
+					 , PA.ATTNUM AS col_idx
+				  FROM PG_STAT_ALL_TABLES PS
+					   <![CDATA[
+				       INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0 ]]>
+				       LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+				     , INFORMATION_SCHEMA.COLUMNS ISC
+				 WHERE PS.SCHEMANAME = 'data_catalog'
+					AND PS.RELNAME = #{data_tbl}
+					AND ISC.TABLE_NAME = PS.RELNAME
+					AND ISC.COLUMN_NAME = PA.ATTNAME
+		  ) a
+		  LEFT JOIN base.mta_data_col b
+		  		 ON a.col_nm_org = b.col_nm_org
+		  		AND b.mta_cd = (
+					SELECT mta_cd
+					  FROM base.mta_data_tbl
+					 WHERE data_tbl = #{data_tbl}
+			    )
+		  ORDER BY a.col_idx ASC;
+	</select>
+	
+	<select id="getDataCatalogCharts" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogCharts */
+	 	SELECT vis_nm
+			 , vis_type
+			 , vis_desc
+			 , vis_x
+			 , vis_y
+			 , vis_o
+		  FROM base.mta_data_vis
+		 WHERE 1 = 1
+		   AND use_stat = 'Y'
+		   AND mta_cd = (
+			   SELECT mta_cd
+				 FROM base.mta_data_tbl
+				WHERE data_tbl = #{data_tbl}
+		   )
+		 ORDER BY vis_idx;
+	</select>
+	
+	<select id="getDataCatalogColumns" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogColumns */
+	 	SELECT a.col_nm_org
+			 , COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+			 , COALESCE(b.col_axis, '없음') AS col_axis
+			 , a.col_type
+		  FROM (
+				SELECT PS.RELNAME AS tbl_nm
+					 , PA.ATTNAME AS col_nm_org
+					 , PD.DESCRIPTION AS col_nm_alias
+					 , ISC.UDT_NAME AS col_type
+					 , PA.ATTNUM AS col_idx
+				  FROM PG_STAT_ALL_TABLES PS
+					   <![CDATA[
+				       INNER JOIN PG_ATTRIBUTE PA ON PS.RELID = PA.ATTRELID AND PA.ATTNUM > 0 AND PA.atttypid > 0 ]]>
+				       LEFT JOIN PG_DESCRIPTION PD ON PS.RELID = PD.OBJOID AND PD.OBJSUBID = PA.ATTNUM
+				     , INFORMATION_SCHEMA.COLUMNS ISC
+				 WHERE PS.SCHEMANAME = <include refid="schemaValue" />
+					AND PS.RELNAME = #{data_tbl}
+					AND ISC.TABLE_NAME = PS.RELNAME
+					AND ISC.COLUMN_NAME = PA.ATTNAME
+		  ) a
+		  LEFT JOIN base.ply_thm_col b
+		  		 ON a.col_nm_org = b.col_nm_org
+		  		AND b.thm_cd = #{thm_cd}
+		  ORDER BY a.col_idx ASC;
+	</select>
+	
+	<select id="getDataCatalogRowCount" resultType="int">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogRowCount */
+	 	SELECT COUNT(*)
+	 	  FROM <include refid="schemaName" />."${data_tbl}";
+	</select>
+	
+	<select id="getDataCatalogChunkData" resultType="hashmap">
+	 	/* dongjak.catalog.DataCatalogDAO.getDataCatalogChunkData */
+	 	SELECT
+	 		   <foreach collection="columns" item="column" separator=", ">
+	 				<if test='column.equals("geom")'>ST_AsGeoJSON(geom) AS geom</if>
+	 				<if test='!column.equals("geom")'>"${column}"</if>
+	 		   </foreach>
+	 	  FROM <include refid="schemaName" />."${data_tbl}"
+	 	 LIMIT #{take} OFFSET #{skip};
+	</select>
+	
+</mapper>
