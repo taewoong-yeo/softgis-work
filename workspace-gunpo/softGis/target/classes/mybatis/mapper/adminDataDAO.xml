@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.data.AdminDataDAO">
+
+	<select id="getMetadatas" resultType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.getMetadatas */
+		SELECT
+			a.mta_id, a.mta_cd, a.mta_nm, a.mta_desc, a.mta_src
+			, a.mta_fcly, a.mta_gther, a.mta_url, a.mta_apikey, a.mta_tbl
+			, a.mta_cat, a.mta_dept, a.remark, c.cd_nm AS mta_fcly_nm, d.cd_nm AS mta_cat_nm
+			, MAX(b.base_date) AS mta_upt_date, a.use_stat, a.open_in_stat, a.open_out_stat, a.down_stat
+		FROM base.mta_data a
+		LEFT JOIN base.mta_data_tbl b ON a.mta_cd = b.mta_cd
+		LEFT JOIN base.code c ON a.mta_fcly = c.cd_id AND c.grp_id = 'DATA_FCLY'
+		LEFT JOIN base.code d ON a.mta_cat = d.cd_id AND d.grp_id = 'DATA_CATE'
+		GROUP BY a.mta_id, a.mta_cd, a.mta_nm, a.mta_desc, a.mta_src
+			, a.mta_fcly, a.mta_gther, a.mta_url, a.mta_tbl, a.mta_cat
+			, a.mta_dept, a.remark, c.cd_nm, d.cd_nm, a.use_stat
+			, a.open_in_stat, a.open_out_stat, a.down_stat
+		ORDER BY a.mta_id ASC;
+	</select>
+
+	<select id="checkMetadataNameCollision" resultType="string">
+		/* softGis.admin.data.AdminDataDAO.checkMetadataNameCollision */
+		SELECT
+			mta_cd
+		FROM base.mta_data
+		WHERE mta_nm = #{mta_nm}
+			AND mta_nm != #{mta_nm_old};
+	</select>
+
+	<select id="checkMetadataTableCollision" resultType="string">
+		/* softGis.admin.data.AdminDataDAO.checkMetadataTableCollision */
+		SELECT
+			mta_cd
+		FROM base.mta_data
+		WHERE mta_tbl = #{mta_tbl}
+			AND mta_tbl != #{mta_tbl_old};
+	</select>
+
+	<select id="checkMetadataUsed" resultType="boolean">
+		/* softGis.admin.data.AdminDataDAO.checkMetadataUsed */
+		SELECT
+			COUNT(*) > 0
+		FROM base.anal_data_mngr
+		WHERE mta_cd = #{mta_cd};
+	</select>
+
+	<insert id="insertMetadata" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.insertMetadata */
+		INSERT INTO base.mta_data (
+			mta_cd, mta_nm, mta_desc, mta_src, mta_fcly
+			, mta_gther, mta_url, mta_apikey, mta_tbl, mta_cat
+			, mta_dept, remark, use_stat, open_in_stat, open_out_stat
+			, down_stat, reg_usr_id
+		) VALUES (
+			#{mta_tbl}, #{mta_nm}, #{mta_desc}, #{mta_src}, #{mta_fcly}
+			, #{mta_gther}, #{mta_url}, #{mta_apikey}, #{mta_tbl}, #{mta_cat}
+			, #{mta_dept}, #{remark}, #{use_stat}, #{open_in_stat}, #{open_out_stat}
+			, #{down_stat}, #{session_usr_id}
+		);
+	</insert>
+
+	<update id="updateMetadata" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.updateMetadata */
+		UPDATE base.mta_data
+		SET
+			mta_nm = #{mta_nm}
+			, mta_desc = #{mta_desc}
+			, mta_src = #{mta_src}
+			, mta_tbl = #{mta_tbl}
+			, mta_fcly = #{mta_fcly}
+			, mta_gther = #{mta_gther}
+			, mta_url = #{mta_url}
+			, mta_apikey = #{mta_apikey}
+			, mta_cat = #{mta_cat}
+			, mta_dept = #{mta_dept}
+			, remark = #{remark}
+			, use_stat = #{use_stat}
+			, open_in_stat = #{open_in_stat}
+			, open_out_stat = #{open_out_stat}
+			, down_stat = #{down_stat}
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = now()
+		WHERE mta_cd = #{mta_cd};
+	</update>
+
+	<delete id="deleteMetadata" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.deleteMetadata */
+		DELETE FROM base.mta_data
+		WHERE mta_cd = #{mta_cd}
+	</delete>
+
+	<select id="getDatas" resultType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.getDatas */
+		SELECT
+			a.mta_cd, a.data_tbl, a.base_date, a.use_stat
+			, b.req_type, b.api_url, b.api_param
+			, b.api_total_ele, b.api_data_ele
+		FROM base.mta_data_tbl a
+		LEFT JOIN base.mta_api b on a.mta_id = b.mta_id
+		WHERE a.mta_cd = #{mta_cd}
+		ORDER BY a.base_date DESC;
+	</select>
+
+	<select id="checkDataIntegrated" resultType="boolean">
+		/* softGis.admin.data.AdminDataDAO.checkDataIntegrated */
+		SELECT
+		  	<![CDATA[ (COUNT(DISTINCT col_count) <= 1) as integrated ]]>
+		FROM (
+			SELECT
+				c.col_nm_org, COUNT(c.col_nm_org) as col_count
+			FROM base.mta_data a
+				, base.mta_data_tbl b
+				, (
+					SELECT
+						PS.RELNAME AS tbl_nm
+						, PA.ATTNAME AS col_nm_org
+						, ISC.UDT_NAME AS col_type
+					FROM PG_STAT_ALL_TABLES PS
+						, PG_ATTRIBUTE PA
+						, INFORMATION_SCHEMA.COLUMNS ISC
+					WHERE PS.RELID = PA.ATTRELID
+						AND PS.SCHEMANAME = 'data_catalog'
+						AND ISC.TABLE_SCHEMA = PS.SCHEMANAME
+						AND ISC.TABLE_NAME = PS.RELNAME
+						AND ISC.COLUMN_NAME = PA.ATTNAME
+					ORDER BY PS.RELNAME
+				) c
+			WHERE a.mta_cd = #{mta_cd}
+			AND a.mta_cd = b.mta_cd
+			AND b.data_tbl = c.tbl_nm
+			GROUP BY c.col_nm_org, c.col_type
+		) a;
+	</select>
+
+	<select id="getMtaTableName" resultType="String">
+		SELECT
+			data_tbl
+		FROM base.mta_data_tbl
+		WHERE mta_cd = #{mta_cd};
+	</select>
+
+	<insert id="insertData" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.insertData */
+		INSERT INTO base.mta_data_tbl (
+			mta_id,mta_cd, data_tbl, base_date, use_stat
+		) VALUES (
+			#{mta_id}::INTEGER,#{mta_cd}, #{data_tbl}, #{base_date}, #{use_stat}
+		);
+	</insert>
+
+	<update id="updateData" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.updateData */
+		UPDATE base.mta_data_tbl
+		SET
+			use_stat = #{use_stat}
+		WHERE data_tbl = #{data_tbl};
+	</update>
+
+	<delete id="deleteData" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.deleteData */
+		DELETE FROM base.mta_data_tbl
+		WHERE data_tbl = #{data_tbl};
+	</delete>
+
+	<select id="getDataColumns" resultType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.getDataColumns */
+		<![CDATA[
+		SELECT DISTINCT
+			col_nm_org
+			, col_nm_alias
+			, MIN(col_idx) as col_idx
+		FROM (
+			SELECT
+				a.relname AS tbl_nm
+				, b.attname AS col_nm_org
+				, c.description AS col_nm_alias
+				, b.attnum AS col_idx
+			FROM pg_catalog.pg_stat_all_tables a
+			LEFT JOIN pg_catalog.pg_attribute b ON a.relid = b.attrelid AND b.attnum > 0
+			LEFT JOIN pg_catalog.pg_description c ON a.relid = c.objoid AND c.objsubid = b.attnum
+			LEFT JOIN information_schema.columns d ON a.relname = d.table_name AND b.attname = d.column_name
+			WHERE schemaname = 'data_catalog'
+				AND relname LIKE #{mta_cd} || '%'
+			ORDER BY col_idx
+		) t1
+		GROUP BY col_nm_org, col_nm_alias
+		ORDER BY col_idx;
+		]]>
+	</select>
+
+	<select id="getDataDefinedColumns" resultType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.getDataDefinedColumns */
+		SELECT
+			col_nm_org, col_nm_alias, col_axis
+		FROM base.mta_data_col
+		WHERE mta_cd = #{mta_cd}
+			AND col_axis IS NOT NULL;
+	</select>
+
+	<select id="checkDataColumnUsed" resultType="boolean">
+		/* softGis.admin.data.AdminDataDAO.checkDataColumnUsed */
+		SELECT
+			(COUNT(*) > 0)
+		FROM base.mta_data_vis
+		WHERE mta_cd = #{mta_cd}
+			AND (#{col_nm_org} = vis_x OR #{col_nm_org} = ANY(vis_y));
+	</select>
+
+	<insert id="updateDataColumn" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.updateDataColumn */
+		INSERT INTO base.mta_data_col (
+			mta_cd, col_nm_org, col_nm_alias, col_axis
+		) VALUES (
+			#{mta_cd}, #{col_nm_org}, NULLIF(#{col_nm_alias}, ''), NULLIF(#{col_axis}, '')
+		)
+		ON CONFLICT(mta_cd, col_nm_org)
+		DO UPDATE
+		SET
+			col_nm_alias = NULLIF(#{col_nm_alias}, '')
+			, col_axis = NULLIF(#{col_axis}, '');
+		COMMENT ON COLUMN data_catalog.${tableName}.${col_nm_org} IS '${col_nm_alias}';
+	</insert>
+
+	<update id="deleteDataColumn" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.deleteDataColumn */
+		DELETE FROM base.mta_data_col
+		WHERE mta_cd = #{mta_cd};
+	</update>
+	
+	<insert id="saveApi" parameterType="hashmap">
+		/* softGis.admin.data.AdminDataDAO.saveApi */
+		INSERT INTO base.mta_api (
+			mta_id
+			, mta_cd
+			, api_url
+			, api_param
+			, api_total_ele
+			, api_data_ele
+			 ,req_type
+		) VALUES (
+			#{mta_id}::INTEGER
+			, #{mta_cd}
+			, #{api_url}
+			, #{api_param}
+			, #{api_total_ele}
+			, #{api_data_ele}
+			, #{req_type}
+		)
+		ON CONFLICT (api_id) DO UPDATE
+		SET
+			mta_id = #{mta_id}::INTEGER
+			, mta_cd = #{mta_cd}
+			, api_url = #{api_url}
+			, api_param = #{api_param}
+			, api_total_ele = #{api_total_ele}
+			, api_data_ele = #{api_data_ele}
+			, req_type = #{req_type};
+	</insert>
+
+</mapper>

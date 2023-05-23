@@ -1,0 +1,277 @@
+.form {
+	&-compact & {
+		&-field {
+			font-size: em(12px);
+			margin: 0 0 space(1.5);
+		}
+
+		&-link,
+		&-info {
+			margin: space(1) 0 0;
+		}
+	}
+
+	&-title {
+		margin-top: 0;
+		text-align: center;
+		font-weight: $font-weight-light;
+		font-size: rem(36px);
+	}
+
+	&-field {
+		margin: 0 0 space(1);
+
+		input + input, input + select, input + textarea,
+		select + input, select + select, select + textarea,
+		textarea + input, textarea + select, textarea + textarea {
+			margin: space(.3) 0 0;
+		}
+
+		input, select, textarea, label {
+			display: block;
+			width: 100%;
+		}
+
+		input, select, textarea {
+			border: 1px solid #cccccc;
+			border-radius: $default-border-radius;
+			padding: space(.5) space(1);
+			line-height: $default-paragraph-line-height;
+		}
+
+		label {
+			margin: 0 0 space(.7);
+			font-weight: $font-weight-medium;
+			font-size: em(16px);
+		}
+
+		.icon {
+			vertical-align: text-bottom;
+			font-size: em(22px);
+		}
+
+		&:last-child {
+			margin-bottom: 0;
+		}
+
+		&-inline {
+			display: flex;
+
+			label {
+				margin-bottom: 0;
+				width: auto;
+
+				&:not(:last-child) {
+					margin: 0 space(1) 0 0;
+				}
+			}
+		}
+
+		.form-box {
+			display: flex;
+			justify-content: space-between;
+
+			input {
+				width: calc(100% - 100px);
+			}
+
+			.btn {
+				width: 90px;
+			}
+		}
+	}
+	
+	&-social {
+		margin-top: space(2);
+		padding: space(2) 0;
+	    border-top: 1px solid #e5e5e5;
+	    
+	    .social-guid {
+	    	font-size: em(16px);
+    	    font-weight: 100;
+    	    color: #333;
+	        word-break: keep-all;
+	        text-align: center;
+	        margin-bottom: 10px;
+	        
+	        b {
+	        	font-weight: 900;
+	        }
+	    }
+	        
+        div {
+        	text-align: center;
+    	}
+	}
+
+	&-btn {
+		@extend .btn;
+
+		margin: space(1) 0 0;
+		width: 100%;
+		font-size: em(16px);
+	}
+
+	&-submit,
+	&-delete,
+	&-reset {
+		@extend .form-btn;
+	}
+
+	&-submit {
+		@extend .btn-primary;
+	}
+	
+	&-delete {
+		@extend .btn-secondary;
+		
+		display: none;
+	}
+	
+	&-reset {
+		@extend .btn-dark;
+		
+		display: none;
+	}
+
+	&-inline {
+		display: flex;
+		
+		button, input, select, textarea {
+			min-width: 0; // Firefox FlexBox Issus
+
+			&:not(:last-child) {
+				margin: 0 space(.5) 0 0;
+			}
+		}
+
+		button {
+			flex: 1 0 auto;
+		}
+	}
+
+	&-link,
+	&-info {
+		margin: space(2) 0 0;
+	}
+
+	&-link {
+		li {
+			margin: space(.6) 0 0;
+		}
+
+		a {
+			float: right;
+			color: #767676;
+		}
+		
+		a.join {
+			color: #444;
+			font-weight: 500;
+		}
+		
+		a.find-id::after {
+			content: "/";
+			color: #444;
+			margin: 0 4px;
+		}
+	}
+
+	&-group {
+		display: flex;
+		border-top: 1px solid #000;
+		margin: space(2) 0 0;
+		padding: space(1.5) 0 0;
+
+		&:first-child {
+			margin-top: 0;
+		}
+
+		&-title {
+			padding: 0 space(2) 0 0;
+			font-size: em(18px);
+			font-weight: $font-weight-bold;
+		}
+
+		&-inner {
+			flex: 1;
+		}
+	}
+
+	&-file-drop {
+		z-index: 1;
+		position: relative;
+		overflow: hidden;
+		border: 1px dashed #CCC;
+		border-radius: $default-border-radius;
+		margin: 0;
+		width: 100%;
+		height: space(10);
+		line-height: space(10);
+		vertical-align: middle;
+		text-align: center;
+		color: #999;
+
+		input {
+			display: none;
+		}
+
+		span {
+			z-index: -1;
+			position: relative;
+			font-weight: $font-weight-light;
+		}
+
+		&.selected {
+			border: 2px solid $color-primary;
+			color: $color-primary;
+
+			span {
+				font-weight: $font-weight-bold;
+			}
+		}
+
+		&.active {
+			background: $color-primary;
+			color: #FFF;
+		}
+	}
+
+	&-only {
+		&-update,
+		&-insert {
+			display: none !important;
+		}
+	}
+
+	&-insert &-only-insert,
+	&-update &-only-update {
+		display: block !important;
+	}
+
+	&-required {
+		&:after {
+			content: ' *';
+			color: $color-primary;
+		}
+	}
+
+	&-dialog {
+		margin-top: -1px !important;
+		padding: 0 !important;
+
+		& + .k-dialog-buttongroup {
+			border-top: 1px solid #DDD;
+		}
+	}
+
+	.k-grid {
+		margin-top: space(.5);
+		border: 1px solid #CCC;
+		border-radius: $default-border-radius;
+
+		&-header {
+			border-top: 0;
+		}
+	}
+}

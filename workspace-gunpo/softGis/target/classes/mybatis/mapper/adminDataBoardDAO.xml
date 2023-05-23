@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.databoard.AdminDataBoardDAO">
+	<select id="getDataBoards" resultType="hashmap">
+	 	/* softGis.admin.notice.AdminDataBoardDAO.getDataBoards */
+		SELECT
+			a.data_id
+			, a.data_title
+			, a.data_content
+			, a.file_id
+			, b.file_local_nm 
+			, b.file_org_nm
+			, CASE WHEN ROUND(b.file_size/1024.0, 2) > 1024 THEN ROUNd(b.file_size/1024.0/1024, 2) || ' Mb'
+				   ELSE ROUND(b.file_size/1024.0, 2) || ' Kb' END AS file_sizeimg_blob
+			, a.use_stat
+			, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.data_mngr a
+		LEFT JOIN base.att_file b ON a.file_id = b.file_id
+		ORDER BY a.data_id DESC
+	</select>
+	
+	<select id="getDataBoard" resultType="hashmap">
+	 	/* softGis.admin.notice.AdminDataBoardDAO.getDataBoard */
+			SELECT
+			   a.data_id
+			   , a.data_title
+			   , a.data_content
+			   , a.file_id
+			   , b.file_local_nm as att_file_nm
+			   , a.use_stat
+			   , to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		  FROM ( base.data_mngr a
+		  		 LEFT JOIN base.att_file b ON a.file_id = b.file_id )
+		  WHERE
+		   	a.data_id = #{data_id}::integer
+	</select>
+		   
+	
+	<insert id="insertDataBoard" parameterType="hashmap">
+		/* softGis.admin.notice.AdminDataBoardDAO.insertDataBoard */
+		INSERT 
+		  INTO base.data_mngr (
+			 data_title
+			, data_content
+			, reg_usr_id
+			, reg_dt
+			, file_id
+		  ) VALUES (
+		  	 #{data_title}
+		  	, #{data_content}
+		  	, #{session_usr_id}
+		  	, now()
+		  	, #{file_id}
+		  )
+	</insert>
+	
+	<update id="updateDataBoard" parameterType="hashmap">
+		/* softGis.admin.notice.AdminDataBoardDAO.updateDataBoard */
+		UPDATE 
+		       base.data_mngr
+		   SET
+       		   data_title = #{data_title}
+			   , data_content = #{data_content}
+			   , use_stat = #{use_stat}
+			   , upt_dt = now()
+			   , upt_usr_id = #{session_usr_id}
+			   <if test='file_id != null'>
+				   , file_id = #{file_id}
+			   </if>
+		 WHERE data_id = #{data_id}::integer
+	</update>
+	
+	<delete id="deleteDataBoard">
+		/*softGis.admin.notice.AdminDataBoardDAO.deleteDataBoard */
+		DELETE 
+		FROM base.data_mngr 
+		WHERE data_id = #{data_id}::integer;
+	</delete>
+	
+	<update id="deleteDataBoardAttachment">
+		/*softGis.admin.notice.AdminDataBoardDAO.deleteDataBoardAttachment */
+		UPDATE base.data_mngr
+		   SET file_id = null
+		 WHERE data_id = #{data_id}::integer;
+	</update>
+</mapper>

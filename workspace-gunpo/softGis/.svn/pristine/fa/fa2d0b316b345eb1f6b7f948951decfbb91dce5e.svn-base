@@ -1,0 +1,93 @@
+package softGis.filter;
+
+import java.io.IOException;
+
+import javax.servlet.FilterChain;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.springframework.core.annotation.Order;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import softGis.auth.UserVO;
+
+@Order(3)
+public class AuthFilter extends OncePerRequestFilter {
+
+	@Override
+	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
+		String contextPath = request.getContextPath();
+		
+		String requestURI = request.getRequestURI();
+		requestURI = requestURI.substring(contextPath.length());
+		requestURI = requestURI.trim();
+		
+		UserVO user = (UserVO) request.getSession().getAttribute("user");
+		
+		String[] whitelist = {
+			"/"
+			, "/main.do"
+			, "/redirect.do"
+			, "/login.do"
+			, "/register.do"
+			, "/logout.do"
+			, "/getGroupDepartmentCodes.do"
+			, "/registerCollisionCheck.do"
+			, "/loginKakaoPage.do"
+			, "/loginKakao.do"
+			, "/loginNaverPage.do"
+			, "/loginNaver.do"
+			, "/loginGooglePage.do"
+			, "/loginGoogle.do"
+			, "/mobile_login.do"
+			, "/api/upload_img.do"
+		};
+		
+		if(user == null) {
+			boolean allowed = false;
+			if(requestURI.startsWith("/assets")) {
+				allowed = true;
+			} else {
+				/*
+ 				for(String uri : whitelist) {
+					if(requestURI.equals(uri))
+						allowed = true;
+				}
+				 */
+				if(!(requestURI.indexOf("/admin/") > -1 )) {
+					allowed = true;
+				}
+			}
+			
+			if(allowed == false) {
+				request.setAttribute("message", "로그인이 필요한 서비스입니다.");
+				request.setAttribute("url", "/login.do");
+				request.getRequestDispatcher("/redirect.do").forward(request, response);
+				return;
+			}
+		} else {
+//			boolean isAdmin = user.getUsr_auth().equals("SMGR") || user.getUsr_auth().equals("DMGR");
+			boolean isAdminPage = requestURI.startsWith("/admin/");
+			
+			if(requestURI.equals("/login.do") || requestURI.equals("/register.do")) {
+				response.sendRedirect(contextPath + "/main.do");
+				return;
+			}
+			
+//			if(requestURI.startsWith("/admin") && !isAdmin) {
+//				request.setAttribute("message", "관리자만 이용 가능한 서비스입니다.");
+//				request.setAttribute("url", "/main.do");
+//				request.getRequestDispatcher("/redirect.do").forward(request, response);
+//				return;
+//			}
+			
+			request.setAttribute("__USER__", user);
+			request.setAttribute("__ADMINPAGE__", isAdminPage);
+			request.setAttribute("__NAME__", user.getUsr_nm());
+		}
+		
+		chain.doFilter(request, response);
+	}
+	
+}

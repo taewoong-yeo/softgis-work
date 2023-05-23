@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.notice.AdminNoticeDAO">
+	
+	<select id="getNotices" resultType="hashmap">
+	 	/* softGis.admin.notice.AdminNoticeDAO.getNotices */
+		SELECT
+			a.noti_id
+			, a.noti_type
+			, (select cd_nm from base.code where grp_id='NOTICE' and cd_id = a.noti_type) as noti_type_nm
+			, a.noti_title
+			, a.noti_content
+			, a.start_dt
+			, a.end_dt
+			, CASE WHEN a.end_dt IS NULL THEN '상시' ELSE (a.start_dt || ' ~ ' || a.end_dt) END AS noti_dt
+			, a.file_id
+			, b.file_local_nm 
+			, b.file_org_nm
+			, CASE WHEN ROUND(b.file_size/1024.0, 2) > 1024 THEN ROUNd(b.file_size/1024.0/1024, 2) || ' Mb'
+				   ELSE ROUND(b.file_size/1024.0, 2) || ' Kb' END AS file_size
+			, CONVERT_FROM(a.img_blob, 'utf-8') AS img_blob
+			, a.use_stat
+			, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.noti_mngr a
+		LEFT JOIN base.att_file b ON a.file_id = b.file_id
+	   ORDER BY a.noti_id DESC
+	-- ORDER BY (CASE WHEN a.noti_type = 'FIX' THEN 1 ELSE 2 END) ASC, a.noti_id DESC
+	</select>
+	
+	<select id="getNotice" resultType="hashmap">
+	 	/* softGis.admin.notice.AdminNoticeDAO.getNotice */
+			SELECT
+			   a.noti_id
+			   , a.noti_type
+			   , a.noti_title
+			   , a.noti_content
+			   , a.start_dt
+			   , a.end_dt
+			   , a.file_id
+			   , b.file_local_nm as att_file_nm
+			   , CONVERT_FROM(a.img_blob, 'utf-8') AS img_blob
+			   , a.use_stat
+			   , to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		  FROM ( base.noti_mngr a
+		  		 LEFT JOIN base.att_file b ON a.file_id = b.file_id )
+		  WHERE
+		   	a.noti_id = #{noti_id}::integer
+	</select>
+		   
+	
+	<insert id="insertNotice" parameterType="hashmap">
+		/* softGis.admin.notice.AdminNoticeDAO.insertNotice */
+		INSERT 
+		  INTO base.noti_mngr (
+			noti_type
+			, noti_title
+			<if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>, noti_content</if>
+			<if test='noti_type.equals("POP")'>, img_blob</if>
+			, start_dt 
+			, end_dt
+			, reg_usr_id
+			, reg_dt
+			, upt_usr_id
+			, file_id
+		  ) VALUES (
+		  	#{noti_type}
+		  	, #{noti_title}
+		  	<if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>, #{noti_content}</if>
+			<if test='noti_type.equals("POP")'>, #{img_blob}::bytea</if>
+		  	, #{start_dt}
+		  	, #{end_dt}
+		  	, #{session_usr_id}
+		  	, now()
+		  	, #{session_usr_id}
+		  	, #{file_id}
+		  )
+	</insert>
+	
+	<update id="updateNotice" parameterType="hashmap">
+		/* softGis.admin.notice.AdminNoticeDAO.updateNotice */
+		UPDATE 
+		       base.noti_mngr
+		   SET
+       		   noti_type = #{noti_type}
+			   , noti_title = #{noti_title}
+			   , start_dt = #{start_dt}
+			   , use_stat = #{use_stat}
+			   , end_dt = #{end_dt}
+			   , upt_dt = now()
+			   <if test='file_id != null'>
+				   , file_id = #{file_id}
+			   </if>
+			   <if test='noti_type.equals("GNR") or noti_type.equals("FIX")'>
+				   , noti_content = #{noti_content}
+				   , img_blob = null
+			   </if>
+			   <if test='noti_type.equals("POP")'>
+				   , noti_content = null
+				   <if test='img_blob != null'>, img_blob = #{img_blob}::bytea</if>
+			   </if>
+		 WHERE noti_id = #{noti_id}::integer
+	</update>
+	
+	<delete id="deleteNotice">
+		/*softGis.admin.notice.AdminNoticeDAO.deleteNotice */
+		DELETE 
+		FROM base.noti_mngr 
+		WHERE noti_id = #{noti_id}::integer;
+	</delete>
+	
+	<update id="deleteNoticeAttachment">
+		/*softGis.admin.notice.AdminNoticeDAO.deleteNoticeAttachment */
+		UPDATE base.noti_mngr
+		   SET file_id = null
+		 WHERE noti_id = #{noti_id}::integer;
+	</update>
+	
+</mapper>

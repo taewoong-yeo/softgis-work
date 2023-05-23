@@ -1,0 +1,309 @@
+.admin {
+	display: flex;
+	flex: 1 0 auto;
+	flex-wrap: wrap;
+	margin: 0 space(-1);
+
+	&-wrap {
+		display: flex;
+		flex-direction: column;
+		padding: space(2);
+		margin-top: $topmenu-nav-depth2-height;
+		margin-left: $aside-width;
+		
+		& > h1 {
+			font-weight: $font-weight-regular;
+			margin: 0 0 space(1) 0;
+		}
+	}
+
+	&-panel {
+		flex: 1 0 0%;
+		padding: space(1);
+
+		&-inner {
+			background: #FFF;
+			border: 1px solid #DDD;
+			border-radius: 5px;
+			overflow: hidden;
+		}
+
+		&-max {
+			height: 100%;
+		}
+	}
+
+	&-form {
+		&-el {
+			padding: space(2);
+		}
+	}
+
+	&-column {
+		@extend .badge;
+
+		margin: 0 space(.5) space(.5) 0;
+		font-size: rem(14px);
+
+		&s {
+			display: inline-block;
+		}
+
+		&-x {
+			@extend .badge-primary-filled;
+		}
+
+		&-y {
+			@extend .badge-error-filled;
+		}
+
+		&-action {
+			@extend .badge-gray;
+
+			&.active {
+				@extend .badge-primary;
+			}
+
+			cursor: pointer;
+			user-select: none;
+		}
+
+		&-update {
+			@extend .btn;
+			@extend .btn-primary;
+
+			width: 100%;
+			text-align: center;
+			font-weight: $font-weight-regular;
+			font-size: rem(14px) !important;
+			color: #ffffff !important;
+		}
+
+		&-update-dialog {
+			.form {
+				padding: space(2);
+			}
+		}
+	}
+
+	// Kendo UI Override
+	.k-datepicker {
+		width: 100%;
+	}
+	
+	&-loader,
+	&-anal-catalog {
+		.switch,
+		&-manager .switch {
+			margin: 0;
+			display: block !important;
+			text-align: center;
+		}
+
+		.k-pager-info,
+		&-manager .k-pager-info {
+			display: none !important;
+		}
+
+		&-add,
+		&-edit,
+		&-update,
+		&-delete {
+			display: inline-flex;
+			align-items: center;
+			border: 0;
+			margin: space(.2) 0;
+			padding: space(.5) space(1.5) !important;
+			font-size: rem(14px) !important;
+			font-weight: $font-weight-regular;
+			color: #fff !important;
+		}
+
+		&-add, &-edit {
+			@extend .btn;
+			@extend .btn-lightgray;
+
+			&:before {
+				@extend %icon-bx;
+
+				margin: 0 space(.5) 0 0;
+				font-size: rem(16px);
+				content: '';
+			}
+
+			&.active {
+				@extend .btn-primary;
+			}
+		}
+		
+		&-update {
+			@extend .btn;
+			@extend .btn-primary;
+
+			margin: 0 space(1) 0 0;
+		}
+
+		&-delete {
+			@extend .btn;
+			@extend .btn-error;
+		}
+
+		&-update,
+		&-delete {
+			padding: space(.3) space(1.5) !important;
+		}
+
+		&-up,
+		&-down {
+			margin: 0 space(.5);
+			font-size: rem(22px);
+			cursor: pointer;
+		}
+
+		&-dialog {
+			.form {
+				padding: space(2);
+
+				.k-datepicker,
+				.k-multiselect {
+					width: 100%;
+
+					&-wrap {
+						border-color: #cccccc !important;
+						box-shadow: none !important;
+					}
+
+					input {
+						padding: space(1);
+						height: 33px;
+					}
+				}
+
+				.k-multiselect {
+					.k-clear-value {
+						height: space(4);
+					}
+
+					.k-button {
+						padding: space(1);
+					}
+				}
+
+				.k-picker-wrap {
+					border: 1px solid #cccccc !important;
+					height: auto;
+				}
+			}
+
+			& + .k-dialog-buttongroup .k-primary {
+				// display: none !important;
+			}
+		}
+
+		&-preview {
+			padding: space(2);
+		}
+
+		&-chart {
+			height: 100%;
+		}
+
+		&-placeholder {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			border: 1px dashed $color-lightgray;
+			width: 100%;
+			height: 100%;
+			color: $color-lightgray;
+		}
+	}
+		
+	&-button-array {
+		text-align: right;
+		margin-bottom: 10px;
+		
+		.left { margin-left: 5px;}
+	}
+	
+}
+
+#admin_admin-notice {
+	#start_dt {
+		width: 100%;
+		/*height: 40px;*/
+	}
+	
+	.img-preview {
+		border: 1px dashed $color-lightgray;
+		border-radius: $default-border-radius;
+		padding: space(.3);
+		margin: 0 0 space(2);
+		text-align: center;
+
+		&-placeholder {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: space(1);
+			height: space(30);
+			color: $color-lightgray;
+		}
+
+		img {
+			display: none;
+			max-width: 100%;
+			max-height: space(30);
+		}
+	}
+}
+
+#admin_log {
+	.admin-log {
+		display: flex;
+		flex-wrap: wrap;
+
+		&-wrap {
+			flex: 1 0 50%;
+			max-width: 50%;
+			margin: 0 0 space(2);
+
+			&:nth-child(odd) { padding-right: space(1); }
+			&:nth-child(even) { padding-left: space(1); }
+		}
+
+		&-inner {
+			position: relative;
+			border-radius: $default-border-radius;
+			padding: space(2);
+			background: #ffffff;
+			overflow: hidden;
+		}
+
+		h3 {
+			border-bottom: 1px solid rgba($color-secondary, .5);
+			margin: space(-2) space(-2) 0;
+			padding: space(2);
+			background: rgba($color-secondary, .2);
+			font-size: rem(18px);
+			font-weight: $font-weight-medium;
+		}
+		
+		&-chart {
+			text {
+				font-size: 13px !important;
+			}
+		}
+	}
+}
+
+//비밀번호 초기화 정렬
+.text-right {
+	text-align: right;
+}
+
+
+//사용자 권한 초기화 정렬
+.just-right {
+	justify-content: right;
+}

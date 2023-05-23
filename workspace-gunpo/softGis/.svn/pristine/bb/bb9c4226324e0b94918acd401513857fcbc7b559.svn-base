@@ -1,0 +1,67 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
+
+<t:app>
+	<div class="contents">
+		<section class="sec01">
+			<div class="container">
+				<div class="main-title">
+					<p>데이터 활용으로 미래를 바꾸다</p>
+					<h2>커뮤니티 매핑</h2>
+				</div>
+			</div>
+		</section>
+		<section class="sec02">
+			<div class="container">
+				<div class="left_section">
+					<div class="noti">
+						<span class="title">공지사항</span>
+						<ul class="noti-list">
+							<c:forEach items="${noticeListPop}" var="item">
+								 <li>${item.noti_title} : ${item.noti_content}</li>
+							</c:forEach>
+						</ul>
+					</div>
+					<div class="faq">
+						<span class="title">FAQ</span>
+						<ul class="faq-list"></ul>
+					</div>
+				</div>
+				<div class="right_section">
+					<div class="survey">
+						<span class="title">설문목록</span>
+						<ul class="survey-list"></ul>
+					</div>
+				</div>
+			</div>
+		</section>
+	</div>
+	<div class="ftr">
+		<div class="footer_link">
+			<div class="inner">
+				<ul>
+					<li><a href="https://www.yongsan.go.kr/portal/main/contents.do?menuNo=200810" target="_blank">개인정보처리방침</a></li>
+					<li><a href="https://www.yongsan.go.kr/portal/main/contents.do?menuNo=200811" target="_blank">영상정보처리기기 운영ㆍ관리 방침</a></li>
+					<li><a href="https://www.yongsan.go.kr/portal/main/contents.do?menuNo=200812" target="_blank">저작권 정책</a></li>
+					<li><a href="https://www.yongsan.go.kr/portal/main/contents.do?menuNo=200813" target="_blank">E-mail 수집거부</a></li>
+					<!-- <li><a href="https://www.yongsan.go.kr/portal/main/contents.do?menuNo=200814" target="_blank">뷰어 다운로드</a></li> -->
+				</ul>
+			</div>
+		</div>
+		<div class="footer_bottom">
+			<div class="inner">
+				<img class="f_logo" src="../../assets/images/common/footer_logo.png" alt="한국국토정보공사">
+				<div class="address_box">
+					<address>54870 전라북도 전주시 덕진구 기지로 120 (중동)대표전화 : 063-713-1000바로처리 콜센터 : 1588-7704</address>
+					<p>COPYRIGHT(C) LX, ALL RIGHTS RESERVED.</p>
+				</div>
+			</div>
+		</div>
+	</div>
+	<div class="main-popup" style="display: none;"> 
+		<c:forEach var="item" items="${popup}">
+			<img src="<c:url value='${item.img_blob}' />" title="${item.noti_title}" data-noti="${item.noti_no}"/>
+		</c:forEach>
+	</div>
+</t:app>

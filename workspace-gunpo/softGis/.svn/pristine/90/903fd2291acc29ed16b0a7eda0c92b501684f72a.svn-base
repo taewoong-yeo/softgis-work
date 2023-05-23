@@ -1,0 +1,19 @@
+$context-path: '../../';
+
+$aside-width: 80px;
+
+$nav-height: 100px;
+
+$search-menu-width: 280px;
+$search-result-header-height: space(10);
+
+$auth-padding: 40px;
+$auth-width: 1024px;
+$auth-height: 667px;
+$auth-logo-width: 340px;
+
+$logo-width: 200px;
+$logo-height: 160px;
+
+$topmenu-width: 80px;
+$topmenu-height: 90px;

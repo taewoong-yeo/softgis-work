@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.scheduler.SchedulerDAO">
+	
+	<update id="trancateApiTable" parameterType="hashmap">
+	 	/* softGis.scheduler.SchedulerDAO.trancateApiTable */
+		TRUNCATE TABLE data_catalog.${table_nm};
+	</update>
+	
+	<insert id="insertApiData" parameterType="hashmap">
+		/* softGis.scheduler.SchedulerDAO.insertApiData */
+		INSERT INTO data_catalog.${table_nm} (
+		<foreach collection="columns" item="column" separator=", ">
+		   ${column}
+		</foreach>
+		) VALUES (
+		<foreach collection="datas" item="data" separator="), (">
+			<foreach collection="columns" item="column" separator=", ">
+				<![CDATA[
+				'${data.get(column)}'
+				]]>
+			</foreach>
+		</foreach>
+		);
+	</insert>
+	
+	
+</mapper>

@@ -1,0 +1,95 @@
+.u {
+	&-clearfix::after {
+		display: block;
+		content: '';
+		clear: both;
+	}
+
+	&-sep {
+		display: inline-block;
+		position: relative;
+		top: 1px;
+		width: 1px;
+		height: .9em;
+		margin: 0 .9em;
+		background: $color-gray;
+		opacity: .7;
+	}
+
+	&-hide { display: none !important; }
+	
+	&-text {
+		@each $name, $color in map-merge($ui-light, $ui-dark) {
+			&-#{$name} {
+				color: $color !important;
+			}
+		}
+		/*&-primary { color: $color-primary !important; }
+		&-secondary { color: $color-secondary !important; }
+		&-error { color: $color-error !important; }
+		&-dark { color: $color-dark !important; }
+		&-gray { color: $color-gray !important; }*/
+
+		&-underline { text-decoration: underline !important; }
+
+		&-align {
+			&-left { text-align: left !important;  }
+			&-right { text-align: right !important;  }
+			&-center { text-align: center !important;  }
+		}
+
+		&-ellipsis {
+			display: block;
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			line-height: $default-paragraph-line-height;
+		}
+	}
+
+	&-line {
+		&-height {
+			&-default { line-height: $default-line-height !important; }
+			&-paragraph { line-height: $default-paragraph-line-height !important; }
+		}
+	}
+
+	&-flex {
+		display: flex !important;
+
+		&-fill {
+			flex: 1 1 auto !important;
+		}
+	}
+
+	&-float {
+		&-none { float: none !important; }
+		&-left { float: left !important; }
+		&-right { float: right !important; }
+	}
+
+	@for $i from 0 through 10 {
+		$j: calc($i / 2);
+		
+		&-margin-#{$i} { margin: space($j) !important; }
+		&-nmargin-#{$i} { margin: space(-$j) !important; }
+		&-padding-#{$i} { padding: space($j) !important; }
+
+		@each $d in 'top', 'right', 'bottom', 'left' {
+			&-margin-#{$d}-#{$i} { margin-#{$d}: space($j) !important; }
+			&-nmargin-#{$d}-#{$i} { margin-#{$d}: space(-$j) !important; }
+			&-padding-#{$d}-#{$i} { padding-#{$d}: space($j) !important; }
+		}
+	}
+	
+	@each $d in 'none', 'block', 'inline-block', 'inline' {
+		&-display-#{$d} {
+			display: #{$d} !important;
+		}
+	}
+	
+	@each $d in 'flex-start', 'flex-end', 'center', 'space-between', 'space-around' {
+		&-align-items-#{$d} { align-items: #{$d} !important; }
+		&-justify-content-#{$d} { justify-content: #{$d} !important; }
+	}
+}

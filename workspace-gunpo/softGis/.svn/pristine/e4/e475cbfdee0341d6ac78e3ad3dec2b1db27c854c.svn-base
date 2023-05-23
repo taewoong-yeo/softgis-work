@@ -1,0 +1,403 @@
+$(function(){
+    var $map = null;
+	var $data = null;
+	
+	let sDate = $("#sDate").val();
+	let eDate = $("#eDate").val();
+
+    ADM_CD.forEach(function(v){
+		$(".adm-cd select").append("<option value='"+v[0]+"'>"+v[1]+"</option>");
+	});
+
+    $('#MAP').on('ol-init', function(e, map, data){
+		$map = map;
+		$data = data;
+	});
+
+	$('#MAP').on('ol-select', function(e, selected){
+		kcbAjax(selected);
+        $(".adm-cd select option").each(function(i, v){
+			if(v.value == selected){
+				$(this).attr("selected", "selected");
+			} else {
+				$(this).removeAttr("selected");
+			}
+		});
+	});
+    $(".adm-cd select").on("change", function(){
+		let changed = this.value;
+		if(changed != 36020){
+			$("#dashboardValue").val(changed);
+			mapControll();
+		} else {
+			resetMap();
+		}
+	});
+    $("#inquiry button, #MAP [data-map-action=home]").on("click", function(){
+		sDate = $("#sDate").val();
+		eDate = $("#eDate").val();
+		
+		$("#indType").val("sales");
+		
+		$("#admSelect option:eq(0)").attr("selected", "selected");
+		
+		resetMap();
+		kcbAjax();
+		
+		$("#indutyType button").removeClass("on");
+		$("#indutyType button").eq(0).addClass("on");
+	});
+
+	var colorArray = [
+        "#FFEB3B" ,"#FFC107" ,"#FF9800" ,"#FF5722"
+		,"#F44336" ,"#E91E63" ,"#9C27B0" ,"#673AB7"
+		,"#3F51B5" ,"#2196F3" ,"#03A9F4" ,"#00BCD4"
+        ,"#009688" ,"#4CAF50" ,"#8BC34A" ,"#CDDC39"
+		,"#795548" ,"#9E9E9E" ,"#607D8B"
+	];
+	var colorArrayReverse = colorArray.reverse();
+
+	//옵션설정
+    Highcharts.setOptions({
+		colors: colorArray,
+		global: {
+			useUTC: false, // 시간이 맞지 않을때
+			thousandsSep: ',' // 천단위 콤마 설정
+		},
+		title: {
+			text: undefined //chart title
+		},
+		lang: {
+			thousandsSep: ',' //천단위 콤마 설정
+		},
+		xAxis: {
+			labels: {
+				//autoRotation: undefined, //글자 겹칠시 회전 설정
+			},
+			tickWidth: 0 //수치범위표시 연결 선굵기
+		},
+		yAxis: {
+			title: { enabled: false },
+			gridLineWidth: 0,
+			tickAmount: 5, // 그리드 눈금자 수
+		},
+		plotOptions: {
+			series: {
+				colorByPoint: true,
+				layoutAlgorithm: 'squarified',
+				states: {
+					inactive: {
+						opacity: 1 //차트 마우스오버시 배경 불투명도 정도
+					},
+					hover: {
+						halo: false, //pie chart mouseover effect
+					}
+				},
+				stickyTracking: false, //배경 마우스오버시 포인터 활성화 여부
+				stacking: undefined, //series 겹침 여부
+			},
+			pie: {
+				dataLabels:{
+					enabled: true,
+					style:{ // 데이터 수치 표시 스타일
+						color : "#ffffff", //텍스트 컬러
+						textOutline : "none", // 데이터 수치표시 테두리
+					}
+				},
+				borderWidth: 0, //데투리
+				borderColor: "", //테두리 색상
+				innerSize: '45%', //도넛모양 원안에 원사이즈
+			},
+		},
+		tooltip: {
+			shared: false //툴팁 공유 //여러개 상요시 false 해야 같이 선택안됨
+		},
+		legend: {
+			enabled: false //범례 여부
+		},
+		credits: {
+			enabled: false //하단 참조 주소값 여부
+		},
+		exporting: {
+			enabled: true, //햄버거 버튼 여부
+			filename: '차트',
+			buttons: {
+				contextButton: {
+				  menuItems: ['downloadPNG', 'downloadJPEG']
+				}
+			  }
+		}
+	});
+
+    //이벤트
+	$("#indutyType button").on("click", function(){
+		indType = $(this).data("indtype");
+		$("#indType").val(indType);
+		
+		indutyAjax();
+		
+		$("#indutyType button").removeClass("on");
+		$(this).addClass("on");		
+	})
+	
+	//이벤트 끝
+	kcbAjax();
+	
+	function kcbAjax(admCd){
+		indType = $("#indType").val();
+		
+        $.ajax({
+            type: "GET",
+            data: {admCd : admCd, indType : indType, sDate : sDate, eDate : eDate},
+            url: Constant.CONTEXT_PATH + '/selfEmployData.do',
+            async: false,
+            success: function(data){
+
+				if(data.layout){
+					var dArray = [];
+					$(".items").each(function(i,v){
+						
+						let idx = data.layout[i].vis_sort;
+						let bowl = $("[data-div-name='"+idx+"']").clone(true);
+						dArray.push(bowl);
+					});
+					
+					$(".items").each(function(i,v){
+						$(v).find(".card-box").eq(0).remove();
+						$("[data-sort='"+(i+1)+"']").append(dArray[i]);
+					});
+				}
+
+                //전년대비 매출비율 증감율
+                setString(data.result.yearSalesRatio, data.visMap.yearSalesRatio, "yearSalesRatio");
+                $.each(data.result.yearSalesRatio, function(idx, val){
+					delete val.base_mon;
+				})
+                                let resultData = multiColumnSeries(data.result.yearSalesRatio);
+                multiColumn('yearSalesRatio', resultData.data, {from: 10, to: 90}, resultData.categories);
+                
+                //행정동별 업종별 운영업체 수
+                if(indType == "sales"){
+                	setString(data.result.admByInduty, data.visMap.admByInduty, "admByInduty");
+		        	var admByInduty = dataTransSeries(data.result.admByInduty);
+		        	
+	        		mColumnChart("admByInduty", admByInduty, null, "normal");
+		        	
+	        		if(data.visMap.admByInduty[0].use_at == "N"){
+						$("#admByInduty").parents(".card-box").find('.card-btn-menu button').eq(0).hide();
+						$("#admByInduty").parents(".card-box").find('.card-btn-menu button').addClass("on");
+						$("#indType").val("cnt")
+						indutyAjax();
+					}
+					if(data.visMap.admByIndutyCnt[0].use_at == "N"){
+						$("#admByInduty").parents(".card-box").find('.card-btn-menu button').eq(1).hide();
+						$("#indType").val("sales");
+					}
+                }else{
+                	setString(data.result.admByIndutyCnt, data.visMap.admByIndutyCnt, "admByInduty");
+                	var admByIndutyCnt = dataTransSeries(data.result.admByIndutyCnt);
+					mColumnChart("admByInduty", admByIndutyCnt, null, "normal");
+                }
+
+                //분기별 장기-단기 연체자수
+                setString(data.result.delinquent, data.visMap.delinquent, "delinquent");
+                $.each(data.result.delinquent, function(idx, val){
+					delete val.base_mon;
+				})
+				
+                var delinquent = dataTransSeries(data.result.delinquent, "series");
+				createChart(data.visMap.delinquent, delinquent);
+
+                // 분기별 평균매출그룹 업체수
+				setString(data.result.avgSales, data.visMap.avgSales, "avgSales");
+				$.each(data.result.avgSales, function(idx, val){
+					delete val.base_mon;
+				})
+                var avgSales = dataTransSeries(data.result.avgSales);
+				createChart(data.visMap.avgSales, avgSales);
+                
+                
+                //행정동별 장단기 대출 연체자수
+				/*setString(data.result.admOverdue, data.visMap.admOverdue, "admOverdue");
+	        	$.each(data.result.admOverdue, function(idx, val){
+	        		delete val.base_mon;
+	        	})
+	        	var admOverdue = dataTransSeries(data.result.admOverdue, "series");
+				createChart(data.visMap.admOverdue, admOverdue);
+				//행정동별 장단기 대출 연체자
+		    	 setTooltip("admOverdue", function(){	        		 
+		    		 return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+" 명";
+		    	 })
+				 */
+	        	 
+	        	//행정동별 1년전 대비 추정연매출 증감률
+	        	var yearSalse = dataTransSeries(data.result.yearSalse);
+	        	setString(data.result.yearSalse, data.visMap.yearSalse, "yearSalse");
+	        	yearSalse.reverse();
+	        	multiColumn("yearSalse", yearSalse, {from: 35, to: 60}, null, "category");
+                let chart = getChart('yearSalse');
+                var axisMax = chart.yAxis[0].max; // Max of the axis
+                
+                //업종별 카드 사용 비율
+                setString(data.result.cardRate, data.visMap.cardRate, "cardRate");
+                $.each(data.result.cardRate, function(idx, val){
+                	delete val.base_mon;
+                })
+                var cardRate = dataTransSeries(data.result.cardRate, "series");
+                createChart(data.visMap.cardRate, cardRate);
+                addOption('cardRate', lineSet());
+                setTooltip("cardRate", function(){	        		 
+                	return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+" %";
+           	 	})
+                
+	        	setAll();
+                
+            }
+        });
+    }//kcb function end
+    	
+    function indutyAjax(){
+    	indType = $("#indType").val();
+    	
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + '/byInduty.do',
+	        data: {indType : indType, sDate : sDate, eDate : eDate},
+	        async: false,
+	        success: function(data){
+	        	//행정동별 업종별 운영업체 수
+				if(indType == 'sales'){
+					setString(data.result.admByInduty, data.visMap.admByInduty, "admByInduty");
+					var admByInduty = dataTransSeries(data.result.admByInduty);
+					mColumnChart("admByInduty", admByInduty, null, "normal");
+					
+					setAll();
+				} else {
+					setString(data.result.admByIndutyCnt, data.visMap.admByIndutyCnt, "admByInduty");
+					var admByIndutyCnt = dataTransSeries(data.result.admByIndutyCnt);
+					
+					mColumnChart("admByInduty", admByIndutyCnt, null, "normal");
+					if(data.visMap.admByIndutyCnt[0].use_at == "N"){
+						$("#admByInduty").parents(".card-box").children().hide();
+						$("#indType").val("sales");
+					}
+					
+					setAll(false);
+				}
+	        }
+		});// ajax end
+	}//indutyAjax end
+
+
+    function setAll(flag){
+    	//행정동별 업종별 운영업체 
+		addOption("admByInduty", {plotOptions:{series:{dataLabels:{enabled:false}}}});
+		setTooltip("admByInduty", function(){	        		 
+    		 var unit = indType == "cnt" ? "개 업체" : " 천원"
+    		 return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+unit;
+    	 })    	
+    	 
+    	 if(flag == false)return false;
+    	 
+    	 //행정동별 1년전 대비 추정연매출 증감률
+    	 addOption("yearSalse", {plotOptions:{series:{dataLabels:{enabled:false}}}});
+		 setTooltip("yearSalse", function(){	        		 
+	   		return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+"개 업체";
+	   	 })
+	}
+
+    function mapControll(){
+		var dashboardValue = $("#dashboardValue").val();
+
+		if(dashboardValue) {
+            kcbAjax(dashboardValue);
+			var feature = $data.filter(function(v) {
+				return v.get('adm_cd') == dashboardValue;
+			}).pop();
+
+			zoomToFeature(feature);
+
+			$map.getInteractions().forEach(function (interaction) {
+				if (interaction instanceof ol.interaction.Select) {
+					var features = interaction.getFeatures();
+
+					features.clear();
+					features.push(feature);
+				}
+			});
+		}
+
+	}
+	function zoomToFeature(feature) {
+	 	var featureExtent = feature.getGeometry().getExtent();
+	 	$map.getView().fit(featureExtent, {duration: 1000}, $map.getSize());
+	}
+
+    //지도 리셋
+	function resetMap(){
+		$map.getInteractions().forEach(function (interaction) {
+			if (interaction instanceof ol.interaction.Select) {
+				var features = interaction.getFeatures();
+				features.clear();
+			}
+		});
+		
+		$map.getView().setCenter([14216813.063998628, 4129787.873521699]);
+		$map.getView().setZoom(12);
+	}
+    
+	function setString(data, visMap, id){
+		var v = visMap[0];
+		if(v.use_at == "Y"){
+			if(data != null && data.length != 0){
+				var d = data[0];
+			
+				var mon = d.base_mon;
+				let resultTime = stringTime(mon);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				if(id == "cardRate"){
+					$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);					
+				}else{
+					$("[data-chart='"+id+"']").find(".cht-std").text(resultTime+" ("+mon.substring(4,6)/3+"/4 분기)");					
+				}
+			}else{
+				let eDate = $('#eDate').val().replace("-","");
+				let resultTime = stringTime(eDate);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);
+			}
+		}else{
+			if(v.vis_cate != null){
+				
+			}else{
+				$("#"+id).parents(".card-box").children().hide();
+			}
+		}
+	}
+	
+	
+	//라인차트셋팅값
+	function lineSet(){
+		return {
+			legend: {
+				enabled: true,
+		    },
+		    plotOptions: {
+		    	series : {
+		    		dataLabels: {
+		    			enabled: false,
+		    		},
+		    		marker: { //꼭짓점
+		    			symbol: '',
+		    			radius: 3, //크기
+		                lineWidth: 0,
+		            },
+		        },
+		    },
+		}
+	}// lineSet end
+
+});	
+	
+
+    

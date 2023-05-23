@@ -1,0 +1,20 @@
+package softGis.admin.notice;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+
+import egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl;
+
+@Service("AdminNoticeService")
+public class AdminNoticeService extends EgovAbstractServiceImpl {
+
+	@Resource(name="AdminNoticeDAO")
+	private AdminNoticeDAO dao;
+	
+
+	
+}

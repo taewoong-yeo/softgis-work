@@ -1,0 +1,99 @@
+package softGis.main;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@Controller
+public class MainController {
+	
+	@Resource(name="mainService")
+	public MainService mainService;
+	
+	/** 메인 **/
+	@RequestMapping(value="/main.do")
+	public String main(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		
+		List<Object> noticeListPop = mainService.getNoticeListPop(paramMap);
+		model.addAttribute("noticeListPop", noticeListPop);  //최대 5개 까지만 표출되도록 
+		
+		return "main";
+	}
+	
+	/** 서비스 소개 **/
+	@RequestMapping(value="/service.do")
+	public String service(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "service";
+	}
+	
+	/** 설문 만들기 > 설문 만들기 **/
+	@RequestMapping(value="/survey-create.do")
+	public String surveyCreate(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "survey-create";
+	}
+	
+	/** 설문 만들기 > My 설문함 **/
+	@RequestMapping(value="/survey-my.do")
+	public String surveyMy(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "survey-my";
+	}
+	
+	/** 설문 만들기 > 설문 서식 **/
+	@RequestMapping(value="/survey-format.do")
+	public String surveyFormat(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "survey-format";
+	}
+	
+	/** 설문 참여하기 **/
+	@RequestMapping(value="/survey-join.do")
+	public String surveyJoin(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "survey-join";
+	}
+	
+	/** AI 분석 **/
+	@RequestMapping(value="analysis.do")
+	public String analysis(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "analysis";
+	}
+	
+	//게시판 시작
+	/** 공지사항 **/
+	@RequestMapping(value="/noticeList.do")
+	public String getNoticeList(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		List<Object> noticeList = mainService.getNoticeListPop(paramMap);
+		model.addAttribute("noticeList", noticeList);
+			
+		return "notice/notice-list";
+	}
+
+	@RequestMapping(value="/noticeDetail.do")
+	public String getNoticeDetail(@RequestParam Map<String, Object> paramMap, ModelMap model) throws Exception {
+		Map<String, Object> noticeDetail = mainService.getNoticeDetail(paramMap);
+			
+		model.addAttribute("noticeDetail", noticeDetail);
+		return "notice/notice-detail";
+	}	
+	//게시판 끝 
+	
+	@RequestMapping(value="/redirect.do")
+	public String redirect(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		model.addAllAttributes(paramMap);
+		
+		return "redirect";
+	}
+	
+	@RequestMapping(value="/upload-test.do")
+	public String uploadTest(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		model.addAllAttributes(paramMap);
+		
+		return "upload-test";
+	}
+	
+}

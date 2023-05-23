@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.survey.SurveyDAO">
+	
+	<!-- 커뮤니티매핑그룹 --> 
+	<!-- 커뮤니티매핑그룹 목록 -->
+	<select id="getSurveyGroupList" resultType="hashmap">
+	 	/* softGis.survey.SurveyDAO.getSurveyGroupList */
+		SELECT grp_id
+				, grp_nm
+				, grp_desc
+				, usr_id
+				, use_stat
+				, lat
+				, lon
+				, reg_usr_id
+				, reg_dt
+		FROM base.survey_group
+		WHERE use_stat = 'Y'
+	</select>
+
+	<!-- 커뮤니티매핑그룹 등록 -->
+	<insert id="insertSurveyGroup" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.insertSurveyGroup */
+		INSERT
+		  INTO base.survey_group (
+			   grp_id
+				, grp_nm
+				, grp_desc
+				, usr_id
+				, use_stat
+				, lat
+				, lon
+				, reg_usr_id
+				, reg_dt
+		  ) VALUES (
+			   nextval('base.survey_group_seq'::regclass)
+			   , #{grp_nm}
+			   , #{grp_desc}
+			   , #{usr_id}
+			   , 'Y'
+			   , #{lat}
+			   , #{lon}
+			   , #{usr_id}
+			   , NOW()
+		  )
+	</insert>
+	
+	<!-- 커뮤니티매핑그룹 수정 -->
+	<update id="updateSurveyGroup" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.updateSurveyGroup */
+		UPDATE base.survey_group
+		SET 
+			<if test="grp_nm != '' and grp_nm != null">
+			 	grp_nm = #{grp_nm},
+			</if>
+			<if test="grp_desc != '' and grp_desc != null">
+				grp_desc = #{grp_desc},
+			</if>
+			<if test="usr_id != '' and usr_id != null">
+				usr_id = #{usr_id},
+			</if>
+			<if test="use_stat != '' and use_stat != null">
+				use_stat = #{use_stat},
+			</if>
+			<if test="lat != '' and lat != null">
+				lat = #{lat},
+			</if>
+			<if test="lon != '' and lon != null">
+				lon = #{lon},
+			</if>
+			upt_usr_id = #{upt_usr_id},
+			upt_dt = NOW()
+		WHERE grp_id = #{grp_id}
+	</update>	
+	
+	<!-- 커뮤니티매핑그룹 삭제 -->
+	<delete id="deleteSurveyGroup" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.deleteSurveyGroup */
+		UPDATE base.survey_group
+		SET  use_stat = 'N'
+			, upt_usr_id = #{upt_usr_id}
+			, upt_dt = NOW()
+		WHERE grp_id = #{grp_id}
+	</delete>	
+	
+	
+	<!-- 커뮤니티매핑 목록 -->
+	<select id="getSurveyList" resultType="hashmap">
+	 	/* softGis.survey.SurveyDAO.getSurveyList */
+		SELECT svy_id
+				,svy_title
+				,svy_desc
+				,start_dt
+				,end_dt
+				,file_id
+				,svy_table
+				,svy_data
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+				,grp_id
+				,prj_cd
+				,view_cnt
+		FROM BASE.survey
+		WHERE use_stat = 'Y'
+	</select>
+	
+	<!-- 커뮤니티매핑 상세 -->
+	<select id="getSurveyDetail" resultType="hashmap">
+	 	/* softGis.survey.SurveyDAO.getSurveyDetail */
+		SELECT svy_id
+				,svy_title
+				,svy_desc
+				,start_dt
+				,end_dt
+				,file_id
+				,svy_table
+				,svy_data
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+				,grp_id
+				,prj_cd
+		FROM base.survey
+		WHERE svy_id = #{svy_id}
+	</select>
+
+	<!-- 커뮤니티매핑 등록 -->
+	<insert id="insertSurvey" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.insertSurvey */
+		INSERT
+		  INTO base.survey (
+			   svy_id
+				,svy_title
+				,svy_desc
+				,start_dt
+				,end_dt
+				,file_id
+				,svy_table
+				,svy_data
+				,grp_id
+				,prj_cd
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+		  ) VALUES (
+			   nextval('base.survey_seq')
+			   , #{svy_title}
+			   , #{svy_desc}
+			   , #{start_dt}
+			   , #{end_dt}
+			   , #{file_id}
+			   , #{svy_table}
+			   , #{svy_data}
+			   , #{grp_id}
+			   , #{prj_cd}
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+		  )
+		<selectKey resultType="integer" keyProperty="svy_id" order="AFTER">
+			SELECT CURRVAL('base.survey_seq');
+		</selectKey>
+	</insert>
+	
+	<!-- 커뮤니티매핑 수정 -->
+	<update id="updateSurvey" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.updateSurvey */
+		UPDATE base.survey
+		SET 
+			<if test="svy_title != '' and svy_title != null">
+			 	svy_title = #{svy_title}
+			</if>
+			<if test="svy_desc != '' and svy_desc != null">
+				, svy_desc = #{svy_desc}
+			</if>
+			<if test="start_dt != '' and start_dt != null">
+				, start_dt = #{start_dt}
+			</if>
+			<if test="end_dt != '' and end_dt != null">
+				, end_dt = #{end_dt}
+			</if>
+			<if test="file_id != '' and file_id != null">
+				, file_id = #{file_id}
+			</if>
+			<if test="svy_table != '' and svy_table != null">
+				, svy_table = #{svy_table}
+			</if>
+			<if test="svy_data != '' and svy_data != null">
+				, svy_data = #{svy_data}
+			</if>
+			<if test="grp_id != '' and grp_id != null">
+				, grp_id = #{grp_id}
+			</if>
+			<if test="prj_cd != '' and prj_cd != null">
+				, prj_cd = #{prj_cd}
+			</if>
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE svy_id = #{svy_id}::INTEGER
+	</update>	
+	
+	<!-- 커뮤니티매핑 삭제 -->
+	<delete id="deleteSurvey" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.deleteSurvey */
+		UPDATE base.survey
+		SET  use_stat = 'N'
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE svy_id = #{svy_id}::INTEGER
+	</delete>	
+	
+	<!-- 커뮤니티매핑 옵션 -->
+	<!-- 커뮤니티매핑 옵션 목록 -->
+	<select id="getSurveyItemList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.survey.SurveyDAO.getSurveyItem */
+		SELECT item_id
+				, svy_id
+				, item_nm
+				, item_desc
+				, ans_opt_cd
+		FROM base.survey_item
+		WHERE svy_id = #{svy_id}::INTEGER
+	</select>
+
+	<!-- 커뮤니티매핑 옵션 등록 -->
+	<insert id="insertSurveyItem" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.insertSurveyItem */
+		INSERT
+		  INTO base.survey_item (
+			   item_id
+				, svy_id
+				, item_nm
+				, item_desc
+				, ans_opt_cd
+				, use_stat
+				, reg_usr_id
+				, reg_dt
+		  ) VALUES (
+			   nextval('base.survey_items_seq')
+			   , #{svy_id}::INTEGER
+			   , #{item_nm}
+			   , #{item_desc}
+			   , #{ans_opt_cd}
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+		  )
+	</insert>
+	
+	<!-- 커뮤니티매핑 옵션 삭제 -->
+	<delete id="deleteSurveyItem" parameterType="hashmap">
+	 	/* softGis.survey.SurveyDAO.deleteSurveyItem */
+		DELETE FROM base.survey_item
+		WHERE svy_id = #{svy_id}::INTEGER
+	</delete>
+	
+	
+	<!-- 커뮤니티매핑 답변 -->
+	<!-- 답변 테이블 생성 -->
+	<insert id="createAnswerTable" parameterType="hashmap">
+		/* softGis.survey.SurveyDAO.createAnswerTable */
+		CREATE TABLE survey_answer.survey_${svy_id} ( LIKE base.survey_answer )
+	</insert>
+	
+	<!-- 답변 시퀀스 생성 -->
+	<insert id="createAnswerSequence" parameterType="hashmap">
+		/* softGis.survey.SurveyDAO.createAnswerSequence */
+		CREATE SEQUENCE survey_answer.survey_answer_seq_${svy_id}
+		INCREMENT BY 1
+		MINVALUE 1
+		MAXVALUE 9223372036854775807
+		START 1
+		CACHE 1
+		NO CYCLE
+	</insert>
+	
+	<!-- 답변 조회 -->
+	<select id="getAnswerList" parameterType="hashmap" resultType="hashmap">
+		/* softGis.survey.SurveyDAO.getAnswerList */
+		SELECT ans_id
+				, svy_id
+				, item_id
+				, ans_content
+				, opt_id
+				, file_id
+				, img_id1
+				, img_id2
+				, img_id3
+				, img_id4
+				, geom
+				, grp_id
+				, tar_id
+				, prj_cd
+		FROM survey_answer.survey_${svy_id}
+		WHERE svy_id = #{svy_id}::INTEGER
+	</select>
+	
+	<!-- 답변 저장 -->
+	<insert id="insertSurveyAnswer" parameterType="hashmap">
+		/* softGis.survey.SurveyDAO.insertSurveyAnswer */
+		INSERT INTO survey_answer.survey_${svy_id}
+				(
+		 		ans_id
+				, svy_id
+				, item_id
+				, ans_content
+				, opt_id
+				, file_id
+				, img_id1
+				, img_id2
+				, img_id3
+				, img_id4
+				, geom
+				, grp_id
+				, tar_id
+				, prj_cd
+				, use_stat
+				, reg_usr_id
+				, reg_dt
+				)
+		VALUES (
+		 		nextval('survey_answer.survey_answer_seq_${svy_id}')
+				, #{svy_id}::INTEGER
+				, #{item_id}::INTEGER
+				, #{ans_content}
+				, #{opt_id}::INTEGER
+				, #{file_id}::INTEGER
+				, #{img_id1}::INTEGER
+				, #{img_id2}::INTEGER
+				, #{img_id3}::INTEGER
+				, #{img_id4}::INTEGER
+				, #{geom}
+				, #{grp_id}::INTEGER
+				, #{tar_id}::INTEGER
+				, #{prj_cd}
+				, 'Y'
+				, #{session_usr_id}
+				, NOW()		
+				)
+	</insert>
+	
+	<!-- 답변 수정 -->
+	<update id="updateSurveyAnswer" parameterType="hashmap">
+		/* softGis.survey.SurveyDAO.updateSurveyAnswer */
+		UPDATE survey_answer.survey_${svy_id}
+		SET ans_content = #{ans_content}
+			, opt_id = #{opt_id}::INTEGER
+			, file_id = #{file_id}::INTEGER
+			, img_id1 = #{img_id1}::INTEGER
+			, img_id2 = #{img_id2}::INTEGER
+			, img_id3 = #{img_id3}::INTEGER
+			, img_id4 = #{img_id4}::INTEGER
+			, geom = #{geom}
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WEHRE ans_id = #{ans_id}
+	</update>
+	
+	<!-- 개인별 답변 내용 -->
+	<select id="getSurveyAnswerPersonal" parameterType="hashmap" resultType="hashmap">
+		select a.item_id
+				, a.item_nm
+				, a.item_desc
+				, a.ans_opt_cd 
+				, b.ans_content
+				, b.opt_id
+				, b.file_id
+				, b.img_id1
+				, b.img_id2
+				, b.img_id3
+				, b.img_id4
+				, b.geom
+		from base.survey_item a left outer join survey_answer.survey_${svy_id} b 
+		on a.item_id = b.item_id 
+		where a.svy_id = ${svy_id}
+		and b.reg_usr_id = #{session_usr_id}
+	</select>
+	
+</mapper>

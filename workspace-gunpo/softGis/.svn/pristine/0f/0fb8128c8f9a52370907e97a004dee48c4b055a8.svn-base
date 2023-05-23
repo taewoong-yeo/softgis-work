@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.partcptnMap.troblGoods.TroblGoodsDAO">
+
+	<select id="getTroblGoodsList" resultType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.getTroblGoodsList */
+		SELECT goods_id
+				, goods_nm
+				, case 
+					when rental_start_dt != '' then to_char(TO_DATE(rental_start_dt,'YY-MM-DD'), 'YY.MM.DD') || ' - ' || to_char(TO_DATE(rental_end_dt,'YY-MM-DD'), 'YY.MM.DD')
+					else '상시' end as rental_dt
+				, rental_start_dt
+				, rental_end_dt
+				, file_id
+				, goods_addr
+				, lat
+				, lon
+				, rental_stat
+				, (select usr_nm from base.usr where usr_id = tgcm.reg_usr_id ) as usr_nm 
+				, (select count(*) from partcptn_map.trobl_goods_reply tgr where tgr.goods_id = tgcm.goods_id) as reply_cnt
+		FROM partcptn_map.trobl_goods_cnrs_mapping tgcm
+		WHERE 1=1
+		<if test="listGb != null and listGb != ''">
+			AND reg_usr_id = #{session_usr_id}
+		</if>
+		<if test="search_keyword != null and search_keyword != ''">
+			AND goods_nm LIKE '%' || #{search_keyword} || '%'
+		</if>
+		ORDER BY goods_id DESC
+		<if test="main_gb != null and main_gb != ''">
+			LIMIT 20
+		</if>
+	</select>
+
+	<select id="getTroblGoodsDetail" parameterType="hashmap" resultType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.getTroblGoodsDetail */
+		SELECT goods_id
+				, goods_nm
+				, rental_start_dt
+				, rental_end_dt
+				, file_id
+				, goods_addr
+				, lat
+				, lon
+				, rental_stat
+		FROM partcptn_map.trobl_goods_cnrs_mapping
+		WHERE goods_id = #{goods_id}::Integer
+	</select>
+
+	<insert id="insertTroblGoods" parameterType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.insertTroblGoods */
+		INSERT INTO partcptn_map.trobl_goods_cnrs_mapping
+				(goods_id
+				, goods_nm
+				, rental_start_dt
+				, rental_end_dt
+				, file_id
+				, goods_addr
+				, lat
+				, lon
+				, rental_stat
+				, use_stat
+				, reg_usr_id
+				, reg_dt)
+		VALUES (
+				nextval('partcptn_map.trobl_goods_seq')
+				, #{goods_nm}
+				, #{rental_start_dt}
+				, #{rental_end_dt}
+				, #{file_id}
+				, #{goods_addr}
+				, #{lat}::DOUBLE PRECISION
+				, #{lon}::DOUBLE PRECISION
+				, #{rental_stat}
+				, 'Y'
+				, #{session_usr_id}
+		  		, now()
+				)
+	</insert>
+	
+	<update id="updateTroblGoods" parameterType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.updateTroblGoods */
+		UPDATE partcptn_map.trobl_goods_cnrs_mapping
+		SET goods_nm = #{goods_nm}
+			, rental_start_dt = #{rental_start_dt}
+			, rental_end_dt = #{rental_end_dt}
+			, file_id = #{file_id}
+			, goods_addr = #{goods_addr}
+			, lat = #{lat}::DOUBLE PRECISION
+			, lon = #{lon}::DOUBLE PRECISION
+			, rental_stat = #{rental_stat}
+		WHERE goods_id = #{goods_id}::Integer
+	</update>
+	
+	<select id="getTroblGoodsReplyList" parameterType="hashmap" resultType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.getTroblGoodsReplyList */
+		SELECT reply_id
+				, goods_id
+				, reply_cont
+				, to_char(reg_dt,'YYYY-MM-DD HH:mi') as reg_dt
+				, reg_usr_id
+		FROM partcptn_map.trobl_goods_reply
+		WHERE goods_id = #{goods_id}::Integer
+		ORDER BY reply_id desc
+	</select>
+	
+	<insert id="insertTroblGoodsReply" parameterType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.insertTroblGoodsReply */
+		INSERT INTO partcptn_map.trobl_goods_reply
+			(reply_id
+			, goods_id
+			, reply_cont
+			, reg_usr_id
+			, reg_dt)
+		VALUES (nextval('partcptn_map.trobl_reply_seq')
+				, #{goods_id}::Integer
+				, #{reply_cont}
+				, #{session_usr_id}
+				, NOW())
+	</insert>
+	
+	<delete id="deleteTroblGoodsReply" parameterType="hashmap">
+		/* softGIs.partcptnMap.troblGoods.TroblGoodsDAO.deleteTroblGoodsReply */
+		DELETE FROM partcptn_map.trobl_goods_reply
+		WHERE goods_id = {goods_id}::Integer
+		<if test="reply_id != null reply_id != ''">
+			AND reply_id = #{reply_id}
+		</if>
+	</delete>
+</mapper>

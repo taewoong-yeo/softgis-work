@@ -1,0 +1,338 @@
+.catalog {
+	display: flex;
+	padding: 0 0 0 $search-menu-width;
+	font-size: rem(16px);
+
+	&-menu {
+		position: fixed;
+		display: flex;
+		flex-direction: column;
+		top: 0;
+		left: 0;
+		padding: $nav-height space(2) space(4);
+		width: $search-menu-width;
+		height: 100%;
+		background: #ffffff;
+		z-index: 80;
+		margin-top: 120px;
+
+		&-list {
+			flex: 1 1 0%;
+			margin: 0 space(-4) space(-4);
+			padding: 0 space(4) space(4);
+			overflow-x: hidden;
+			overflow-y: auto;
+		}
+
+		&-item {
+			display: block;
+
+			&:not(:last-child) {
+				margin: 0 0 space(2.5);
+			}
+
+			span {
+				display: flex;
+				align-items: center;
+				border-bottom: 1px solid $color-light;
+				margin: 0 0 space(1.5);
+				padding: space(1.5) 0;
+				font-weight: $font-weight-medium;
+				cursor: pointer;
+				font-size: rem(21px);
+
+				&:after {
+					@extend %icon-bx;
+
+					flex: 1 1 auto;
+					content: '\edbd';
+					color: $color-lightgray;
+					font-size: rem(24px);
+					text-align: right;
+				}
+			}
+		}
+	}
+
+	&-title {
+		margin: space(4) 0;
+		color: $color-secondary;
+		font-weight: 800;
+		font-size: rem(28px);
+	}
+
+	&-content {
+		width: 100%;
+		padding: space(2) space(2);
+	}
+
+	&-section {
+		margin: 0 auto;
+		padding: space(2);
+
+		&-title {
+			font-size: rem(18px);
+			font-weight: $font-weight-medium;
+			margin: 0 0 space(2);
+		}
+
+		&-inner {
+			position: relative;
+			border-radius: $default-border-radius;
+			background-color: #ffffff;
+			overflow: hidden;
+		}
+	}
+
+	&-basic {
+		display: flex;
+		align-items: center;
+		padding: space(4);
+
+		small {
+			display: block;
+			margin: 0 0 space(.8);
+			font-size: rem(14px);
+			color: #999999;
+		}
+
+		&-title {
+			margin: 0 0 space(2);
+
+			h1, h2, h3, h4, h5, h6 {
+				font-size: rem(36px);
+				font-weight: $font-weight-medium;
+				color: $color-secondary;
+			}
+		}
+
+		&-desc {
+			p {
+				font-size: rem(18px);
+			}
+		}
+
+		&-inner {
+			flex: 1 0 auto;
+		}
+
+		&-action {
+			.btn {
+				margin: 0 0 0 space(1);
+				padding: space(2) space(4);
+				font-size: rem(18px);
+				font-weight: $font-weight-light;
+			}
+		}
+	}
+
+	&-spec {
+		background: transparent;
+
+		&-full {
+			width: 100%;
+		}
+
+		table {
+			border-collapse: separate;
+			table-layout: fixed;
+			background: #ffffff;
+
+			tr:first-child td:first-child { border-top-left-radius: $default-border-radius; }
+			tr:first-child td:last-child { border-top-right-radius: $default-border-radius; }
+			tr:last-child td:first-child { border-bottom-left-radius: $default-border-radius; }
+			tr:last-child td:last-child { border-bottom-right-radius: $default-border-radius; }
+			tr:not(:last-child) td { border-bottom: 0; }
+			td:not(:first-child) { border-left: 0; }
+
+			td {
+				border: 1px solid rgba($color-secondary, .2);
+				padding: space(2);
+
+				&:nth-child(odd) {
+					width: space(15);
+					min-width: space(15);
+					background: rgba($color-secondary, .1);
+					font-weight: $font-weight-medium;
+					text-align: center;
+				}
+			}
+		}
+	}
+
+	&-preview {
+		&-option {
+			display: flex;
+			
+			select {
+				border: 0;
+				padding: space(2);
+				width: 50%;
+				flex-basis: 50%;
+
+				&:not(:last-child) {
+					border-right: 1px solid rgba($color-secondary, .2);
+				}
+			}
+
+			#catalog_preview_type {
+				display: flex;
+				width: 50%;
+				flex-basis: 50%;
+
+				a {
+					display: flex;
+					flex: 1 0 auto;
+					align-items: center;
+					justify-content: center;
+					font-size: rem(18px);
+
+					@include bx-selector() {
+						margin: 0 space(1) 0 0;
+						font-size: rem(24px);
+					}
+
+					&:not(:last-child) {
+						border-right: 1px solid rgba($color-secondary, .2);
+					}
+
+					&.active {
+						background: $color-primary;
+						color: #ffffff;
+					}
+				}
+			}
+		}
+
+		&-list,
+		&-map,
+		&-chart {
+			border-top: 1px solid rgba($color-secondary, .2);
+			min-height: space(60);
+		}
+
+		&-list {
+			.k-grid-toolbar {
+				display: flex;
+				align-items: center;
+			}
+
+			.k-grid-search {
+				width: space(40);
+				margin: 0 auto 0 space(1);
+				padding-right: 0;
+			}
+		}
+
+		&-chart {
+			position: relative;
+
+			&-wrap {
+				position: absolute;
+				padding: space(2);
+
+				&:not(:first-child) {
+					border-top: 1px solid rgba($color-secondary, .2);
+				}
+			}
+		}
+
+		&-empty {
+			position: absolute;
+			top: 50%;
+			left: 0;
+			transform: translateY(-50%);
+			width: 100%;
+			text-align: center;
+			font-size: rem(18px);
+			color: rgba(#000000, .5);
+
+			@include bx-selector() {
+				margin: 0 0 space(1);
+				font-size: rem(40px);
+			}
+		}
+
+		&-label {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: space(20);
+			background: rgba($color-secondary, .2);
+			font-weight: $font-weight-medium;
+
+			@include bx-selector() {
+				margin: 0 space(1) 0 0;
+				font-size: rem(18px);
+			}
+		}
+	}
+
+	&-download {
+		&-list,
+		&-chart,
+		&-map {
+			@extend .btn;
+			@extend .btn-secondary;
+
+			padding: space(1) space(2);
+			line-height: rem(24px);
+			vertical-align: middle;
+
+			@include bx-selector() {
+				margin: -2px space(.5) 0 0;
+				font-size: rem(24px);
+				vertical-align: middle;
+			}
+		}
+
+		&-list {
+			@extend .btn;
+			@extend .btn-secondary;
+
+			margin: space(.5) space(1);
+			padding: space(1) space(2) !important;
+			color: #ffffff !important;
+			font-size: rem(16px) !important;
+			font-weight: $font-weight-regular;
+
+			@include bx-selector() {
+				margin: -2px space(.5) 0 0;
+				font-size: rem(24px);
+				vertical-align: middle;
+			}
+		}
+
+		&-chart {
+			position: absolute;
+			right: space(1);
+			top: space(1);
+			z-index: 1;
+
+			@include bx-selector() {
+				margin: -2px space(.5) 0 0;
+				font-size: rem(24px);
+				vertical-align: middle;
+			}
+		}
+
+		&-map {
+
+			&-wrap {
+				right: space(18);
+			}
+		}
+	}
+
+	// _policy-map.scss와 같은 코드 사용 (모듈화 필요)
+	.map-opacity {
+		bottom: 0;
+
+		h6 {
+			padding: space(.5) 0;
+			font-size: rem(15px);
+			font-weight: $font-weight-medium;
+			text-align: center;
+		}
+	}
+}

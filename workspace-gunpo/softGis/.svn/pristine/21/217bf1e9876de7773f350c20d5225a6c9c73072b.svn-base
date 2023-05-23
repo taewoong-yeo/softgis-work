@@ -1,0 +1,37 @@
+package softGis.main;
+
+import java.util.List;
+import java.util.Map;
+
+import egovframework.rte.psl.dataaccess.mapper.Mapper;
+
+@Mapper("mainDAO")
+public interface MainDAO {
+
+	public List<Object> getDataCatlog();
+	
+	public List<Object> getDashboard();
+	
+	public Object getAdmDong(Map<String, Object> paramMap);
+	
+	public Object getEmdDong(Map<String, Object> paramMap);
+	
+	public List<Object> getPopup();
+	
+	public List<Object> getMainNoticeList(Map<String, Object> paramMap);
+
+	public List<Object> getNoticeList(Map<String, Object> paramMap);
+	
+	public List<Object> getNoticeListPop(Map<String, Object> paramMap); //팝업공지
+	
+	public Map<String, Object> getNoticeDetail(Map<String, Object> paramMap);
+
+	public List<Object> getMainAnalResultList(Map<String, Object> paramMap);
+
+	public List<Object> getAnalResultList(Map<String, Object> paramMap);
+	
+	public Map<String, Object> getAnalResultDetail(Map<String, Object> paramMap);
+
+	public List<Object> getMainSearchResult(Map<String, Object> paramMap);
+	
+}

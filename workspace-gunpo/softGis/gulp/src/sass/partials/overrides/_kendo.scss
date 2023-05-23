@@ -1,0 +1,154 @@
+.k {
+	$self: &;
+
+	&-widget {
+		border-width: 0;
+		border-color: transparent;
+		font-family: inherit;
+		font-size: inherit;
+	}
+
+	&-state-focused,
+	&-link {
+		box-shadow: none !important;
+	}
+	
+	&-grid {
+		tbody tr {
+			&:hover {
+				background-color: #96c3ce;
+			}
+		}
+
+		td {
+			white-space: nowrap;
+			text-overflow: ellipsis;
+		}
+
+		.btn {
+			padding: space(.2) space(1);
+			font-size: rem(14px);
+			color: #fff !important;
+		}
+
+		&-table {
+			width: 100%;
+			overflow-x: auto;
+		}
+
+		&-toolbar {
+			text-align: right;
+			border-style: none;
+			border-width: 0;
+		}
+		
+		&-header {
+			th {
+			    text-align: center;
+				border-width: 1px 0 1px 1px;
+				border-style: solid none solid solid;
+				border-color: rgba(0,0,0,.08);
+			}
+
+			.k-icon {
+				vertical-align: middle !important;
+			}
+		}
+
+		&-pager {
+			border-top: 1px solid rgba(0,0,0,0.08);
+		}
+
+		&-pager {
+			background: transparent;
+			padding-top: space(1);
+			padding-bottom: space(1);
+		}
+
+		&-norecords-template {
+			border: 0;
+		}
+	}
+
+	&-dialog {
+		&-content {
+			padding: 0;
+			padding-right: 1px;
+		}
+
+		&-titlebar {
+			padding: space(2) space(3) space(2) space(2) !important;
+			background: $color-background;
+		}
+
+		&-title {
+			font-size: rem(16px) !important;
+			font-weight: 700;
+		}
+
+		#{$self}-button {
+			
+			&#{$self}-primary {
+				background: $color-primary !important;
+				color: #ffffff !important;
+				border-color: $color-primary;
+			}
+			
+			&#{$self}-dark {
+				background: $color-dark !important;
+				color: #ffffff !important;
+				border-color: $color-dark;
+			}
+		}
+	}
+
+	&-tooltip {
+		b, strong {
+			font-weight: bold;
+		}
+	}
+
+	&-sorted {
+		background-color: transparent !important;
+	}
+	
+	&-editor {
+		border: 1px solid #ccc;
+	    border-radius: $default-border-radius;
+	    width: 100% !important;
+	}
+}
+
+// button
+.k-command-cell>.k-button {
+
+
+	&.k-grid-excel {
+		background: url(/togetherMap/assets/images/fileicon/xlsx.png) no-repeat;
+		display: inline-block;
+		background-size: 5.71429rem;
+		font-size: 0;
+		width: 80px;
+		height: 25px;
+		cursor: pointer;
+		margin: 0 3px;
+		border: 0;
+
+		.k-i-file-excel {
+			display: none;
+		}
+	}
+
+	&.k-grid-csv {
+		background: url(/togetherMap/assets/images/fileicon/csv.png) no-repeat;
+		display: inline-block;
+		background-size: 5.71429rem;
+		font-size: 0;
+		width: 80px;
+		height: 25px;
+		cursor: pointer;
+		margin: 0 3px;
+		border: 0;
+	}
+}
+

@@ -1,0 +1,51 @@
+%custom-input {
+	display: inline-block !important;
+	width: auto !important;
+	cursor: pointer;
+	user-select: none;
+
+	input {
+		display: none;
+	}
+
+	span:before {
+		position: relative;
+		top: -.07em;
+		vertical-align: middle;
+		font-size: 1.35em;
+		cursor: pointer;
+	}
+
+	input:checked + span:before {
+		color: $color-primary;
+	}
+}
+
+.checkbox {
+	@extend %custom-input;
+
+	input:not(checked) + span:before { @extend %icon-far; content: ''; }
+	input:checked + span:before { @extend %icon-fas; content: ''; }
+}
+
+.radio {
+	@extend %custom-input;
+
+	font-size: em(14px) !important;
+	font-weight: normal !important;
+
+	span { margin: 0 0 0 .35em; }
+	input:not(checked) + span:before { @extend %icon-far; content: ''; }
+	input:checked + span:before { @extend %icon-fas; content: ''; }
+
+	& + & {
+		margin-left: 1em;
+	}
+}
+
+.switch {
+	@extend %custom-input;
+
+	span:before { @extend %icon-fas; content: '\f204'; font-size: 1.5em; }
+	input:checked + span:before { content: '\f205'; }
+}

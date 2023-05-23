@@ -1,0 +1,758 @@
+$(function(){
+	var $map = null;
+	var $data = null;
+	var $visMap = null;
+	
+	let sDate = $("#sDate").val();
+	let eDate = $("#eDate").val();
+
+	$('#MAP').on('ol-init', function(e, map, data){
+		$map = map;
+		$data = data;
+	});
+
+	EMD_CD.forEach(function(v){
+		$(".adm-cd select").append("<option value='"+v[1]+"'>"+v[1]+"</option>");
+	});
+	
+	$("#inquiry button, #MAP [data-map-action=home]").on("click", function(){
+		$("#dashboardValue").val('');
+		
+		var resetBldType = "apt";
+		var resetTrType = "trde";
+		$("#bldRentType").val(resetBldType);
+		$("#bldTrdeType").val(resetBldType);
+		$("#yeyBldIncType").val(resetBldType);
+		$("#emdBldIncType").val(resetBldType);
+		$("#bldAgeChType").val("age")
+		
+		$("#emdBldIncTrType").val(resetTrType);
+		$("#yeyBldIncTrType").val(resetTrType);
+		
+		$(".card-bt-tab button").removeClass("on");
+		$(".construct-btn button").removeClass("on");
+		
+		$("#bldTrde button").eq(0).addClass("on");
+		$("#bldRent button").eq(0).addClass("on");
+		$("#emdTrType button").eq(0).addClass("on");
+		$("#emdBldType button").eq(0).addClass("on");
+		$("#yeyBldType button").eq(0).addClass("on");
+		$("#yeyTrType button").eq(0).addClass("on");
+		$("#bldAgeType button").eq(0).addClass("on");
+		
+		$("#admSelect option:eq(0)").attr("selected", "selected");
+		
+		constructAjax();
+		$map.getInteractions().forEach(function (interaction) {
+			if (interaction instanceof ol.interaction.Select) {
+				var features = interaction.getFeatures();
+				features.clear();
+			}
+		});
+	});
+
+
+	var colorArray = [
+		"#F44336" ,"#E91E63" ,"#9C27B0" ,"#673AB7"
+		,"#3F51B5" ,"#2196F3" ,"#03A9F4" ,"#00BCD4"
+		,"#009688" ,"#4CAF50" ,"#8BC34A" ,"#CDDC39"
+		,"#FFEB3B" ,"#FFC107" ,"#FF9800" ,"#FF5722"
+		,"#795548" ,"#9E9E9E" ,"#607D8B"
+	];
+	var colorArrayReverse = colorArray.reverse();
+	//옵션설정
+	Highcharts.setOptions({
+		colors: colorArrayReverse,
+		global: {
+			useUTC: false, // 시간이 맞지 않을때
+			thousandsSep: ',' // 천단위 콤마 설정
+		},
+		title: {
+			text: undefined //chart title
+		},
+		lang: {
+			thousandsSep: ',' //천단위 콤마 설정
+		},
+		// colors: ['#F53A00', '#FF5C00', '#E66F00', '#FF9A00', '#F5A800'],
+		xAxis: {
+			labels: {
+				//autoRotation: undefined, //글자 겹칠시 회전 설정
+			},
+			tickWidth: 0 //수치범위표시 연결 선굵기
+		},
+		yAxis: {
+			title: { enabled: false },
+			gridLineWidth: 0,
+			tickAmount: 5, // 그리드 눈금자 수
+		},
+		plotOptions: {
+			series: {
+				colorByPoint: true,
+				layoutAlgorithm: 'squarified',
+				states: {
+					inactive: {
+						opacity: 1 //차트 마우스오버시 배경 불투명도 정도
+					},
+					hover: {
+						halo: false, //pie chart mouseover effect
+					}
+				},
+				stickyTracking: false, //배경 마우스오버시 포인터 활성화 여부
+				stacking: undefined, //series 겹침 여부
+			},
+			pie: {
+				dataLabels:{
+					enabled: true,
+					style:{ // 데이터 수치 표시 스타일
+						color : "#ffffff", //텍스트 컬러
+						textOutline : "none", // 데이터 수치표시 테두리
+					}
+				},
+				borderWidth: 0, //데투리
+				borderColor: "", //테두리 색상
+				innerSize: '45%', //도넛모양 원안에 원사이즈
+			},
+		},
+		tooltip: {
+			shared: false //툴팁 공유 //여러개 상요시 false 해야 같이 선택안됨
+		},
+		legend: {
+			enabled: false //범례 여부
+		},
+		credits: {
+			enabled: false //하단 참조 주소값 여부
+		},
+		exporting: {
+			enabled: true, //햄버거 버튼 여부
+			filename: '차트',
+			buttons: {
+				contextButton: {
+				  menuItems: ['downloadPNG', 'downloadJPEG']
+				}
+			  }
+		}
+	});
+	constructAjax();
+
+	$("#MAP").on('ol-select', function(e, selected) {
+		$(".adm-cd select option").each(function(i, v){
+			if(v.value == selected){
+				$(this).attr("selected", "selected");
+			} else {
+				$(this).removeAttr("selected");
+			}
+		});
+		console.log(selected);
+		$('#dashboardValue').val(selected);
+		constructAjax()
+	});
+	$("#bldYearMonth button").on("click", function(){ // 실거래 전년대비, 전월대비
+		var bldDate = $(this).data("bld-date");
+		$("#bldDateType").val(bldDate);
+		
+		tradeAjax("date");
+		
+		$("#bldYearMonth button").removeClass("on");
+		$(this).addClass("on");
+	})
+	$("#bldTrde button").on("click", function(){ //실거래 매매 건축물타입선택
+		var name = $(this).data('bt-name');
+		$("#bldTrdeType").val(name);
+		
+		tradeAjax("trde");
+		
+		//class
+		$("#bldTrde button").removeClass("on");
+		$(this).addClass("on");
+	})//on click end
+	$("#bldRent button").on("click", function(){ //실거래 전월세 건축물 타입 선택
+		var name = $(this).data('bt-name');
+		$("#bldRentType").val(name);
+		
+		tradeAjax("rent");
+		
+		//class
+		$("#bldRent button").removeClass("on");
+		$(this).addClass("on");
+		
+	})//on click end
+
+	$(".adm-cd select").on("change", function(){
+		let changed = this.value;
+		if(changed != 46130000){
+			$("#dashboardValue").val(changed);
+			mapControll();
+		} else {
+			resetMap();
+		}
+	});
+
+	$(".construct-btn button").on("click", function(){
+		$(this).siblings().removeClass("on");
+		$(this).addClass("on");
+
+		let dataCategorie = $(this).parent().attr("id");
+		
+		if(dataCategorie == "yeyBldType"){
+			$("#yeyBldIncType").val($(this).data("bldtype"));
+			//reload
+			yearInc()
+		} else if(dataCategorie == "yeyTrType"){
+			$("#yeyBldIncTrType").val($(this).data("trtype"));
+			//reload
+			yearInc()
+		} else if(dataCategorie == "emdTrType"){
+			$("#emdBldIncTrType").val($(this).data("trtype"));
+			//reload
+			bildAge()
+		} else if(dataCategorie == "emdBldType"){
+			$("#emdBldIncType").val($(this).data("bldtype"));
+			//reload
+			bildAge()
+		} else if(dataCategorie == "bldAgeType"){
+			$("#bldAgeChType").val($(this).data("agetype"))
+			bldAgeAjax();
+		}
+	});
+
+
+
+	function constructAjax(sel){
+		sDate = $("#sDate").val();
+		eDate = $("#eDate").val();
+		var dashboardSelect = $("#dashboardValue").val();
+		var bldDate = $("#bldDateType").val();
+		
+		var rentName = $("#bldRentType").val();
+		var trdeName = $("#bldTrdeType").val();
+		var incName = $("#yeyBldIncType").val();
+		var emdName = $("#emdBldIncType").val();
+		
+		var emdType = $("#emdBldIncTrType").val();
+		var incType = $("#yeyBldIncTrType").val();
+		
+		var type = $("#bldAgeChType").val();
+			
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + '/constructData.do',
+			data: {admNm : dashboardSelect, bldDate : bldDate, rentName : rentName, trdeName : trdeName, incName : incName, emdName : emdName , sDate : sDate, eDate : eDate},
+			async: false,
+			success: function(data){
+				if(data.layout){
+					var dArray = [];
+					$(".items").each(function(i,v){
+						let idx = data.layout[i].vis_sort;
+						let bowl = $("[data-div-name='"+idx+"']").clone(true);
+						dArray.push(bowl);
+					});
+					$(".items").each(function(i,v){
+						$(v).find(".card-box").eq(0).remove();
+						$("[data-sort='"+(i+1)+"']").append(dArray[i]);
+					});
+				}
+				
+				visMap = data.visMap;
+	
+				// 건축물 종류
+				var bldHouseKind = dataTrans(data.result.bldHouseKind, 'multiSeries');
+				setString(data.result.bldHouseKind, data.visMap.bldHouseKind, "bldHouseKind");
+				bldHouseKind.shift();
+				
+				createChart(data.visMap.bldHouseKind, bldHouseKind, {maxColor: "#ed5b00",minColor: "#ffb47a"});
+				setTooltip('bldHouseKind', function(){
+					return this.point.name+" : "+numberWithCommas(this.point.y)+"";
+				});
+				
+				//노후건축물
+				if(type == "age"){
+					setString(data.result.bldAge, data.visMap.bldAge, "bldAge");
+					if(data.result.bldAge.length != 0){
+						delete data.result.bldAge[0].base_mon;
+					}
+					var bldAge = dataTrans(data.result.bldAge, 'multiSeries');
+
+					createChart(data.visMap.bldAge, bldAge, {maxColor: "#00c99e",minColor: "#a8f0e0"});
+					addOption('bldAge', {plotOptions:{series:{pointWidth:30}}})
+					setTooltip('bldAge', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"";
+					});
+						
+					if(data.visMap.bldAge[0].use_at == "N"){	
+						//노후건축물시계열						
+						$("#bldAge").parents(".card-box").find('.card-btn-menu button').eq(0).hide();
+						$("#bldAge").parents(".card-box").find('.card-btn-menu button').addClass("on");
+						$("#bldAgeChType").val("time");
+						bldAgeAjax();
+					}
+					if(data.visMap.bldAgeMonth[0].use_at == "N"){
+						$("#bldAge").parents(".card-box").find('.card-btn-menu button').eq(1).hide();
+						$("#bldAgeChType").val("age");
+					}
+				}
+				//노후건축물시계열
+				if(type == "time"){
+					setString(data.result.bldAgeMonth, data.visMap.bldAgeMonth, "bldAge");
+					var bldAgeMonth = dataTrans(data.result.bldAgeMonth, 'default');
+					createChart(data.visMap.bldAgeMonth, bldAgeMonth);
+					setTooltip('bldAge', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"개";
+					});
+				}
+				
+				//연도별 실거래 증감 현황
+				if(incType == "trde"){
+					//연도별 증감현황 매매
+					var bldTrdeInc = dataTrans(data.result.bldTrdeInc, 'default'); 
+					setString(data.result.bldTrdeInc, data.visMap.bldTrdeInc, "bldIncrease");
+					
+					createChart(data.visMap.bldTrdeInc, bldTrdeInc);
+					//차트 색상변경
+					getChart('bldIncrease').update({series : {
+						color: '#eda011', //line color
+						marker: {lineColor: '#eda011'}
+					}});
+					setTooltip('bldIncrease', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"만원";
+					});
+
+					if(data.visMap.bldTrdeInc[0].use_at == "N"){	
+						$("#bldIncrease").parents(".card-box").find('.card-btn-menu button').eq(0).hide();
+						$("#bldIncrease").parents(".card-box").find('.card-btn-menu button').addClass("on");
+						$("#yeyBldIncTrType").val("rent");
+						yearInc();	
+					}
+					
+					if(data.visMap.bldRentInc[0].use_at == "N"){
+						$("#bldIncrease").parents(".card-box").find('.card-btn-menu button').eq(1).hide();
+						$("#yeyBldIncTrType").val("trde");
+					}
+				}else if(incType == "rent"){
+					//연도별 증감현황 전월세
+					setString(data.result.bldRentInc, data.visMap.bldRentInc, "bldIncrease");
+					data.result.bldRentInc.forEach(function(v){
+						delete v.base_mon;
+					});
+					var bldRentInc = dataTransSeries(data.result.bldRentInc, 'series');
+					//차트 색상변경
+					$.each(bldRentInc, function(idx, val){
+						if(idx == 0){
+							val.color = "#00ed77";
+							val.marker = {lineColor: '#00ed77'};
+						}else if(idx == 1){
+							val.color = "#eda011";
+							val.marker = {lineColor: '#eda011'};
+						}
+					})
+					//차트 생성
+					createChart(data.visMap.bldRentInc, bldRentInc);
+					addOption('bldIncrease', {plotOptions:{series:{marker:{fillColor:"#ffffff"}}}});
+					setTooltip('bldIncrease', function(){
+						return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+"만원";
+					});
+				}
+				
+				
+				//법정동별 실거래 현황
+				if(emdType == "trde"){
+					//법정동별 실거래 형황 매매
+					setString(data.result.bldEmdTrde, data.visMap.bldEmdTrde, "bldEmdTrde");
+					var bldEmdTrde = dataTrans(data.result.bldEmdTrde, 'default');
+					
+					createChart(data.visMap.bldEmdTrde, bldEmdTrde, {maxColor: '#54389c', minColor: '#ab9ad6'});
+					setTooltip('bldEmdTrde', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"건";
+					});
+					
+					if(data.visMap.bldEmdTrde[0].use_at == "N"){	
+						$("#bldEmdTrde").parents(".card-box").find('.card-btn-menu button').eq(0).hide();
+						$("#bldEmdTrde").parents(".card-box").find('.card-btn-menu button').addClass("on");
+						$("#emdBldIncTrType").val("rent");
+						bildAge();
+					}
+					if(data.visMap.bldEmdRent[0].use_at == "N"){
+						$("#bldEmdTrde").parents(".card-box").find('.card-btn-menu button').eq(1).hide();
+						$("#emdBldIncTrType").val("trde");
+					}
+						
+				}else if(emdType == "rent"){
+					//법정동별 실거래 형황 전월세
+					setString(data.result.bldEmdRent, data.visMap.bldEmdRent, "bldEmdTrde");
+					$.each(data.result.bldEmdRent,function(idx, val){
+						delete val.base_mon;
+					})
+					var bldEmdRent = dataTransSeries(data.result.bldEmdRent, 'series');
+					
+					lineColumChart("bldEmdTrde", bldEmdRent[0].name, bldEmdRent[0].data, bldEmdRent[1].name, bldEmdRent[1].data, "#5ec465", "건", "건");
+					addOption('bldEmdTrde', {colorAxis:[{
+						maxColor: '#54389c',
+						minColor: '#9380c4'
+					}]});
+					setTooltip('bldEmdTrde', function(){
+						return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+"건";
+					});
+				}
+				
+				//실거래
+				//매매
+				var trdeYoy = data.result.bldTrde;
+				if(data.result.bldTrde.length != 0){
+					let resultTime = stringTime(trdeYoy[0].base_mon);
+					$("#bldTrde").prev().find(".cht-std").text(resultTime);
+					$("#dlpc p").eq(0).html("<span><em>"+numberWithCommas(trdeYoy[0].adlpc)+"</em><small>만 원</small></span>");
+					$("#dlpc p").eq(1).html("<span><em>"+trdeYoy[0].tnt+"</em><small>건</small></span>");
+					$("#dlpc p").eq(2).html("전월 대비 <em>"+trdeYoy[0].growth_tnt+"%</em><small></small>");
+					trdeYoy[0].growth_tnt < 0 ? $("#dlpc p").eq(2).find("em").attr("class", "dec") : $("#dlpc p").eq(2).find("em").attr("class", "inc");
+				}else{
+					$("#dlpc p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#dlpc p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#dlpc p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+				}
+				//전월세
+				var rentYoy = data.result.bldRent;
+				if(data.result.bldRent.length != 0){
+					let resultTime = stringTime(rentYoy[0].base_mon);
+					$("#bldRent").prev().find(".cht-std").text(resultTime);
+					$("#lfsts p").eq(0).html("<span><em>"+numberWithCommas(rentYoy[0].alg)+"</em><small>만 원</small></span>");
+					$("#lfsts p").eq(1).html("<span><em>"+rentYoy[0].lc+"</em><small>건</small></span>");
+					$("#lfsts p").eq(2).html("전월 대비 <em>"+rentYoy[0].growth_lc+"%</em><small></small>");
+					rentYoy[0].growth_lc < 0 ? $("#lfsts p").eq(2).find("em").attr("class", "dec") : $("#lfsts p").eq(2).find("em").attr("class", "inc");
+					$("#mtht p").eq(0).html("<span><em>"+numberWithCommas(rentYoy[0].amg)+"</em><small>만 원</small></span>");
+					$("#mtht p").eq(1).html("<span><em>"+rentYoy[0].mc+"</em><small>건</small></span>");
+					$("#mtht p").eq(2).html("전월 대비 <em>"+rentYoy[0].growth_mc+"%</em><small></small>");
+					rentYoy[0].growth_mc < 0 ? $("#mtht p").eq(2).find("em").attr("class", "dec") : $("#mtht p").eq(2).find("em").attr("class", "inc");
+				}else{
+					$("#lfsts p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#lfsts p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#lfsts p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+					$("#mtht p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#mtht p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					$("#mtht p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+					
+				}
+				
+				//건축물
+				var bldSelect1 = data.result.bldSelect1;
+				// bldSelect1[0].growth_val = bldSelect1[0].growth_val == null ? 0 : bldSelect1[0].growth_val;
+				if(bldSelect1.length != 0){
+					$("#bldTot p").eq(0).html("<span><small>"+numberWithCommas(bldSelect1[0].val)+"</small> <small>m<sup>2</sup></sup></small></small></span>");
+					
+				}else{
+					$("#bldTot p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+				}
+				var bldSelect2 = data.result.bldSelect2;
+				// bldSelect2[0].growth_val = bldSelect2[0].growth_val == null ? 0 : bldSelect2[0].growth_val;
+				if(bldSelect2.length != 0){
+					$("#bldAr p").eq(0).html("<span><small>"+numberWithCommas(bldSelect2[0].val)+"</small> <small>m<sup>2</sup></sup></small></small></span>");
+				}else{
+					$("#bldAr p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+				}
+				var bldSelect3 = data.result.bldSelect3;
+				// bldSelect3[0].growth_val = bldSelect3[0].growth_val == null ? 0 : bldSelect3[0].growth_val;
+				if(bldSelect3.length != 0){
+					$("#bldOld p").eq(0).html("<span><small>"+numberWithCommas(bldSelect3[0].val)+"</small> <small>수</small></span>");
+				}else{
+					$("#bldOld p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+					// $("#bldOld p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+				}
+				
+				//건폐율
+				setString(data.result.buildingInfo, data.visMap.buildingInfo, "buildingChart");
+				var buildingInfo = dataTrans(data.result.buildingInfo, 'default');
+				createChart(data.visMap.buildingInfo, buildingInfo, {maxColor: "#007ede",minColor: "#7fbceb"});
+				addOption('buildingChart', {plotOptions:{series:{dataLabels:{format: '{y}%'}}}});
+				setTooltip('buildingChart', function(){
+					return this.point.name+"<br>건폐율 : "+numberWithCommas(this.point.y)+"%";
+				});
+
+				//노후건축물 비율
+				setString(data.result.bldOldRatio, data.visMap.bldOldRatio, "bldOldRatio");
+				var bldOldRatio = dataTrans(data.result.bldOldRatio, 'default');
+			
+				createChart(data.visMap.bldOldRatio, bldOldRatio, {maxColor: "#007ede",minColor: "#7fbceb"});
+				addOption('bldOldRatio', {plotOptions:{series:{dataLabels:{format: '{y}%'}}}});
+				setTooltip('bldOldRatio', function(){
+					return this.point.name+" : "+numberWithCommas(this.point.y)+"%";
+				});
+	
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}
+	function bildAge(){ //법정동별 분포현황 타입선택
+		var trType = $("#emdBldIncTrType").val();
+		var name = $("#emdBldIncType").val();
+		
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + '/'+trType+'EmdData.do',
+			data : {emdName : name, sDate : sDate, eDate : eDate},
+			async: false,
+			success: function(data){
+				console.log(data);
+				if(trType == "trde"){
+					//법정동별 분포 형황 매매
+					setString(data.result.bldEmdTrde, data.visMap.bldEmdTrde, "bldEmdTrde");
+					var bldEmdTrde = dataTrans(data.result.bldEmdTrde, 'default');
+					
+					createChart(data.visMap.bldEmdTrde, bldEmdTrde, {maxColor: "#54389c",minColor: "#ab9ad6"});
+					setTooltip('bldEmdTrde', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"건";
+					});
+					
+				}else if(trType == "rent"){
+					//법정동별 분포 형황 전월세
+					setString(data.result.bldEmdRent, data.visMap.bldEmdRent, "bldEmdTrde");
+					$.each(data.result.bldEmdRent,function(idx, val){
+						delete val.base_mon;
+					})
+					
+					var bldEmdRent = dataTransSeries(data.result.bldEmdRent, 'series');
+					lineColumChart("bldEmdTrde", bldEmdRent[0].name, bldEmdRent[0].data, bldEmdRent[1].name, bldEmdRent[1].data, "#5ec465", "건", "건");
+					addOption('bldEmdTrde', {colorAxis:[{maxColor: '#54389c',minColor: '#9380c4'}]});
+					setTooltip('bldEmdTrde', function(){
+						return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+"건";
+					});
+					
+					if(data.visMap.bldEmdRent[0].use_at == "N"){
+						$("#bldEmdTrde").parents(".card-box").children().hide();
+						$("#emdBldIncTrType").val("trde");
+					}
+				}
+				
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}//function end
+	function yearInc(){ //연도별 증감 현황 타입선택
+		var trType = $("#yeyBldIncTrType").val();
+		var name = $("#yeyBldIncType").val();
+		var dashboardValue = $("#dashboardValue").val();
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + '/'+trType+'IncData.do',
+			data : {admNm : dashboardValue, incName : name, sDate : sDate, eDate : eDate},
+			async: false,
+			success: function(data){
+				console.log(data);
+				if(trType == "trde"){
+					//연도별 증감현황 매매
+					var bldTrdeInc = dataTrans(data.result.bldTrdeInc, 'default'); 
+					setString(data.result.bldTrdeInc, data.visMap.bldTrdeInc, "bldIncrease");
+					
+					createChart(data.visMap.bldTrdeInc, bldTrdeInc);
+					//차트 색상변경
+					getChart('bldIncrease').update({series : {
+						color: '#eda011', //line color
+						marker: {lineColor: '#eda011'}
+					}});
+					setTooltip('bldIncrease', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"만원";
+					});
+				}else if(trType == "rent"){
+					//연도별 증감현황 전월세
+					setString(data.result.bldRentInc, data.visMap.bldRentInc, "bldIncrease");
+					data.result.bldRentInc.forEach(function(v){
+						delete v.base_mon;
+					});
+					var bldRentInc = dataTransSeries(data.result.bldRentInc, 'series');
+					//차트 색상변경
+					$.each(bldRentInc, function(idx, val){
+						if(idx == 0){
+							val.color = "#00ed77";
+							val.marker = {lineColor: '#00ed77'};
+						}else if(idx == 1){
+							val.color = "#eda011";
+							val.marker = {lineColor: '#eda011'};
+						}
+					})
+					
+					//차트 생성
+					createChart(data.visMap.bldRentInc, bldRentInc);
+					addOption('bldIncrease', {plotOptions:{series:{marker:{fillColor:"#ffffff"}}}});
+					setTooltip('bldIncrease', function(){
+						return this.point.name+"<br>"+this.series.name+": "+numberWithCommas(this.point.y)+"만원";
+					});
+						
+					if(data.visMap.bldRentInc[0].use_at == "N"){
+						$("#bldIncrease").parents(".card-box").children().hide();
+						$("#yeyBldIncTrType").val("trde");
+					}
+				}
+				
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}//function end
+
+	
+	function tradeAjax(type){ //실거래 매매, 전월세
+		var bldDate = $("#bldDateType").val();
+		var dashboardVal = $("#dashboardValue").val();
+		var trdeName = $("#bldTrdeType").val();
+		var rentName = $("#bldRentType").val();
+		
+		
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + "/"+type+"Data.do",
+			data : {admNm : dashboardVal, trdeName : trdeName, rentName : rentName, bldDate : bldDate, sDate : sDate, eDate : eDate},
+			async: false,
+			success: function(data){
+				var lastDate = (bldDate == "year"?"전년":"전월");
+				
+				//매매
+				if(type == "date" || type == "trde"){
+					var trdeYoy = data.result.bldTrde;
+					if(data.result.bldTrde.length != 0){
+						let resultTime = stringTime(trdeYoy[0].base_mon);
+						$("#bldTrde").prev().find(".cht-std").text(resultTime);
+						$("#dlpc p").eq(0).html("<span><em>"+numberWithCommas(trdeYoy[0].adlpc)+"</em><small>만 원</small></span>");
+						$("#dlpc p").eq(1).html("<span><em>"+trdeYoy[0].tnt+"</em><small>건</small></span>");
+						$("#dlpc p").eq(2).html(lastDate+" 대비 <em>"+trdeYoy[0].growth_tnt+"%</em><small>건</small>");
+						trdeYoy[0].growth_tnt < 0 ? $("#dlpc p").eq(2).find("em").attr("class", "dec") : $("#dlpc p").eq(2).find("em").attr("class", "inc");
+					}else{
+						$("#dlpc p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#dlpc p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#dlpc p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+					}
+				}
+				//전월세
+				if(type == "date" || type == "rent"){
+					var rentYoy = data.result.bldRent;
+					if(data.result.bldRent.length != 0){
+						let resultTime = stringTime(rentYoy[0].base_mon);
+						$("#bldRent").prev().find(".cht-std").text(resultTime);
+						$("#lfsts p").eq(0).html("<span><em>"+numberWithCommas(rentYoy[0].alg)+"</em><small>만 원</small></span>");
+						$("#lfsts p").eq(1).html("<span><em>"+rentYoy[0].lc+"</em><small>건</small></span>");
+						$("#lfsts p").eq(2).html(lastDate+" 대비 <em>"+rentYoy[0].growth_lc+"%</em><small></small>");
+						rentYoy[0].growth_lc < 0 ? $("#lfsts p").eq(2).find("em").attr("class", "dec") : $("#lfsts p").eq(2).find("em").attr("class", "inc");
+						$("#mtht p").eq(0).html("<span><em>"+numberWithCommas(rentYoy[0].amg)+"</em><small>만 원</small></span>");
+						$("#mtht p").eq(1).html("<span><em>"+rentYoy[0].mc+"</em><small>건</small></span>");
+						$("#mtht p").eq(2).html(lastDate+" 대비 <em>"+rentYoy[0].growth_mc+"%</em><small></small>");
+						rentYoy[0].growth_mc < 0 ? $("#mtht p").eq(2).find("em").attr("class", "dec") : $("#mtht p").eq(2).find("em").attr("class", "inc");
+					}else{
+						$("#lfsts p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#lfsts p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#lfsts p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+						$("#mtht p").eq(0).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#mtht p").eq(1).html("<span class='no-data' style='display:block; height:27px;'>데이터가 없습니다.</span>");
+						$("#mtht p").eq(2).html("<span class='no-data' style='display:block; height:21px;'>데이터가 없습니다.</span>");
+					}
+				}
+			
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}
+
+	function mapControll(){
+		var dashboardValue = $("#dashboardValue").val();
+
+		if(dashboardValue) {
+            constructAjax(dashboardValue);
+			var feature = $data.filter(function(v) {
+				return v.get('emd_nm') == dashboardValue;
+				//return v.get('emd_cd') == dashboardValue;
+			}).pop();
+
+			zoomToFeature(feature);
+
+			$map.getInteractions().forEach(function (interaction) {
+				if (interaction instanceof ol.interaction.Select) {
+					var features = interaction.getFeatures();
+
+					features.clear();
+					features.push(feature);
+				}
+			});
+		}
+
+	}
+	function zoomToFeature(feature) {
+	 	var featureExtent = feature.getGeometry().getExtent();
+	 	$map.getView().fit(featureExtent, {duration: 1000}, $map.getSize());
+	}
+
+	
+	function bldAgeAjax(){ //실거래 매매, 전월세
+		var type = $("#bldAgeChType").val();
+		var dashboardVal = $("#dashboardValue").val();
+		
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + "/"+type+"bldAgeData.do",
+			data : {admNm : dashboardVal, eDate : eDate},
+			async: false,
+			success: function(data){
+				
+				//노후건축물
+				if(type == "age"){
+					setString(data.result.bldAge, data.visMap.bldAge, "bldAge");
+					if(data.result.bldAge.length != 0){
+						delete data.result.bldAge[0].base_mon;
+					}
+					var bldAge = dataTrans(data.result.bldAge, 'multiSeries');
+					createChart(data.visMap.bldAge, bldAge, {maxColor: "#00c99e",minColor: "#a8f0e0"});
+					addOption('bldAge', {plotOptions:{series:{pointWidth:30}}})
+					setTooltip('bldAge', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"";
+					});
+				}
+				//노후건축물시계열
+				if(type == "time"){
+					setString(data.result.bldAgeMonth, data.visMap.bldAgeMonth, "bldAge");
+					var bldAgeMonth = dataTrans(data.result.bldAgeMonth, 'default');
+					createChart(data.visMap.bldAgeMonth, bldAgeMonth);
+					setTooltip('bldAge', function(){
+						return this.point.name+" : "+numberWithCommas(this.point.y)+"개";
+					});
+					
+					if(data.visMap.bldAgeMonth[0].use_at == "N"){
+						$("#bldAge").parents(".card-box").children().hide();
+						$("#bldAgeChType").val("age");
+					}
+					
+				}
+			
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}
+	
+	function setString(data, visMap, id){
+		var v = visMap[0];
+		if(v.use_at == "Y"){
+			if(data != null && data.length != 0){
+				var d = data[0];
+			
+				let resultTime = stringTime(d.base_mon);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);
+			}else{
+				let eDate = $('#eDate').val().replace("-","");
+				let resultTime = stringTime(eDate);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);
+			}
+		}else{
+			if(v.vis_cate != null){
+				
+			}else{
+				$("#"+id).parents(".card-box").children().hide();
+			}
+		}
+	}
+	
+});
+

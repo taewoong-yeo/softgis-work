@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.user.AdminUserDAO">
+	
+	<!-- 회원 목록 -->
+	<select id="getUserList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.admin.user.AdminUserDAO.getUserList */
+	 	SELECT usr_id
+				, usr_nm
+				, usr_mobile
+				, usr_tel
+				, usr_mobile
+				, reg_usr_id
+				, use_stat
+				, usr_auth
+				, TO_CHAR(reg_dt, 'YYYY-MM-DD') AS reg_dt
+				, coalesce(usr_login_type ,'X') AS usr_login_type
+   		FROM base.usr
+		ORDER BY reg_dt desc
+	</select>
+	
+	<!-- 회원 등록 -->
+	<insert id="insertUser" parameterType="hashmap">
+		INSERT INTO base.usr
+			(usr_id
+			, usr_pw
+			, usr_nm
+			, usr_auth
+			, usr_login_type
+			, use_stat
+			, reg_usr_id
+			, reg_dt)
+		VALUES
+			(#{usr_id}
+			, #{usr_pw}
+			, #{usr_nm}
+			, #{usr_auth}
+			, #{usr_login_type}
+			, 'Y'
+			, #{reg_usr_id}
+			, NOW())
+	</insert>	
+	
+	<!-- 회원 수정 -->
+	<update id="updateUser" parameterType="hashmap">
+	UPDATE base.usr
+		SET
+		usr_nm 		 = #{usr_nm},
+		upt_dt 		 = NOW(),
+		usr_auth	 = #{usr_auth},
+		usr_mobile	 = #{usr_mobile},
+		upt_usr_id 	 = #{session_usr_id},
+		use_stat	 = #{use_stat}
+	WHERE usr_id = #{usr_id}
+	</update>	
+	
+	<!-- 회원 수정2 -->
+	<update id="updateUserPwd" parameterType="hashmap">
+	UPDATE base.usr
+		SET
+		upt_dt 		 = NOW(),
+		usr_pw	 = #{usr_pw}
+	WHERE usr_id = #{usr_id}
+	</update>	
+	
+	
+</mapper>

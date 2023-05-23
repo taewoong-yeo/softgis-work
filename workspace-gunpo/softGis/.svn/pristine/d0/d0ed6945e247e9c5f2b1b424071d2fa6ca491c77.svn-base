@@ -1,0 +1,418 @@
+.auth {
+	position: relative;
+	padding: $auth-padding;
+	background: #ffffff;
+	z-index: 1;
+
+	&-inner {
+		display: flex;
+		align-items: center;
+		margin: 0 auto;
+		width: 100%;
+		height: $auth-height;
+		max-width: $auth-width;
+		box-shadow: $default-shadow;
+	}
+
+	&-logo {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 $auth-logo-width;
+		padding: 50px;
+
+		&-bg {
+			z-index: -1;
+			position: absolute;
+			right: 0;
+			bottom: 50%;
+			width: 100vw;
+			height: 100vh;
+			min-height: $auth-height + $auth-padding * 2;
+			background: $color-primary;
+			transform: translateY(50%);
+		}
+	}
+
+	&-form {
+		flex: 1;
+		padding: 0 space(10);
+		
+		.btn_login {
+			height: 100%;
+			margin: 0;
+		}
+	}
+
+	@include breakpoint($responsive-laptop-middle) {
+		&-logo {
+			flex: 0 0 auto;
+			padding: space(4) space(2);
+			width: 100%;
+
+			&-bg {
+				right: 50%;
+				bottom: 0;
+				transform: translateX(50%);
+			}
+		}
+
+		&-inner {
+			flex-direction: column;
+			height: auto;
+			max-width: none;
+		}
+
+		&-form {
+			flex: none;
+			padding: space(4) space(2);
+			width: 100%;
+			max-width: $responsive-mobile;
+		}
+	}
+
+	@include breakpoint($responsive-mobile) {
+		padding: 0;
+
+		&-logo {
+			background: $color-primary;
+
+			img {
+				max-width: $logo-width * .7;
+				max-height: $logo-height * .7;
+			}
+		}
+
+		&-inner {
+			box-shadow: none;
+		}
+
+		&-form {
+			padding-bottom: space(6);
+		}
+	}
+}
+
+.emp-only { display: none; }
+
+.login {
+
+	&_wrap {
+		align-items: center;
+		margin: 0 auto;
+		width: 100%;
+		height: 700px;
+		max-width: 713px;
+	}
+	
+	&_title {
+		display: flex;
+		height: 200px;
+		padding-top: 87px;
+		font-family: NotoSansKR;
+		flex-flow: wrap;
+		justify-content: center;
+			
+		img {
+			width: 88px;
+		}
+		
+		div {
+			margin-left: 20px;
+			
+			span {
+				font-size: 18px;
+				color: #888;
+				line-height: 1.43;
+			}
+		
+			h1 {
+				font-size: 34px;
+				font-weight: 300;
+				margin: 0 0 5px 0;
+				
+				span {
+					color: #088b86;
+					font-size: 34px;
+				}
+			}
+		}
+	}
+	
+	&_form {
+		width: 713px;
+		height: 350px;
+		border-radius: 12px;
+		box-shadow: 2px 6px 20px 0 rgba(0, 0, 0, 0.1);
+		border: solid 1px #cfd2d7;
+		background-color: #fff;
+		display: flex;
+		margin-top: 70px;
+		
+		&.mypage {
+			margin-top: 160px;
+		}
+		
+		.form_title {
+			width: 278px;
+			padding: 80px 80px 86px;
+			background-color: #055b65;
+			border-radius: 12px 0 0 12px;
+			
+			p {
+				font-family: NotoSansKR;
+				font-size: 24px;
+				font-weight: 300;
+				color: #fff;
+				text-align: center;
+			}
+			
+			img {
+				object-fit: contain;
+				margin: 0 23px 26px;
+			}
+		}
+		
+		.form_btn {
+			justify-content: center;
+			display: flex;
+			flex-flow: wrap;
+			padding-top: 29px;
+		
+		span {
+			padding-top:5px;
+			text-align: center;
+			width: 100%;
+			font-family: NotoSansKR;
+			font-size: 14px;
+			color: #888;
+		}
+		
+		div {
+			line-height: 3.4;
+		}
+		}
+		
+		.mypage_title {
+			width: 278px;
+			padding: 80px 30px 86px;
+			background-color: #055b65;
+			border-radius: 12px 0 0 12px;
+			
+			div {
+				display: flex;
+				flex-flow: wrap;
+				
+				img {
+					object-fit: contain;
+					margin-right: 16px;
+				}
+				
+				span {
+					font-size: 34px;
+					font-weight: 500;
+					color: #fff;
+					line-height: normal;
+				}
+				
+				p {
+					margin-top: 40px;
+				font-size: 24px;
+				color: #fff;
+				font-weight: 300;
+				text-align: center;
+				width: 100%;
+				}
+			}
+		}
+		
+		.mypage_form {
+			width: 450px;
+			
+			&_wrap {
+				padding: 20px 40px;
+				display: flex;
+				flex-flow: wrap;
+				
+				div {
+					width: 100%;
+					padding: 18px 0;
+					
+					&:not(:last-child){
+						border-bottom: 1px solid #e8e8e8;
+					}
+				
+					&:nth-child(3), &:nth-child(4){
+						display: flex;
+						
+						div {
+							border-bottom: 0;
+							padding: 0;
+						}
+					}
+
+					.logout {
+						@extend .btn;
+						@extend .btn-secondary-border;
+					
+						width: 83px;
+						height: 38px;
+						border-radius: 6px;
+						padding: 3px 16px;
+						font-size: 13px;
+						font-weight: 300;
+						
+						&:hover {
+							background-color: #05475a;
+						}
+					}
+					
+					.leave {
+						@extend .btn;
+						@extend .btn-error;
+					
+						width: 83px;
+						height: 38px;
+						border-radius: 6px;
+						padding: 3px 16px;
+						font-size: 13px;
+						font-weight: 300;
+						
+						&:hover {
+							background-color: #c53742;
+						}
+					}
+				}
+					
+				.mypage_btn_wrap {
+					padding: 35px 0 0 0;
+					
+					.myCmmnty {
+						@extend .btn;
+						@extend .btn-secondary;
+						margin-right: 10px;
+					}
+					
+					.myAnswer {
+						@extend .btn;
+						@extend .btn-dark;
+					}
+				
+					button {
+						width: 173px;
+						height: 52px;
+						border-radius: 6px;
+						vertical-align: middle;
+						padding: 3px 16px;
+						font-size: 16px;
+						font-weight: 500;
+						
+						&:hover {
+							background-color: #05475a;
+						}
+					}
+					
+					span {
+						margin-left: 8px;
+						vertical-align: super;
+					}
+				}
+			
+				div > span {
+					font-size: 14px;
+					font-weight: 500;
+					line-height: 1.86;
+					color: #888;
+					
+					&.tit {
+						font-size: 14px;
+						font-weight: bold;
+						line-height: 1.86;
+						color: #333;
+						display: inline-block;
+	    				width: 70px;
+					}
+				}
+			}
+		}
+	}
+}
+	
+@media screen and (max-width: 768px) {
+
+	.login_wrap {
+		max-width: 768px;
+		
+		//로그인 반응형 
+		.login_title {
+			display: none;
+		}
+		
+		.login_form {
+			display: block;
+			width:100%;
+			border-radius: 0;
+			box-shadow: none;
+    		border: 0;
+    		margin-top: 0;
+			
+			.form_title {
+				width: 100%;
+				border-radius: 0;
+				display: flex;
+   				justify-content: center;
+   				padding: 80px 80px 30px;
+   				
+   				img {
+					margin: 0 23px;
+   				}
+   				
+   				p {
+   					align-self: center;
+   				}
+			}
+			
+			.form_btn {
+				form {
+					margin-top: 20px;
+				}
+			}
+		}
+	
+		//마이페이지 반응형
+		.mypage_title{
+			width: 100%;
+			padding: 80px 80px 30px;
+			border-radius: 0;
+		
+			 & > div p {
+				display: none;
+			}
+		}
+		
+		.mypage_form {
+			width: 100%;
+			
+			&_wrap {
+				div {
+					&:nth-child(3), &:nth-child(4){
+						display: block;
+						padding: 0;
+						border-bottom: 0;
+						
+						&.mypage_btn_wrap {
+							text-align: center;
+						}
+					
+						div {
+							border-bottom: 1px solid #e8e8e8;
+							padding: 18px 0;
+						}
+					}
+				}
+			}
+		}
+	}
+	
+}

@@ -1,0 +1,325 @@
+package softGis.auth;
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.RequestParam;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl;
+import softGis.core.Encrypter;
+import softGis.core.SessionManager;
+
+@Service("authService")
+public class AuthService extends EgovAbstractServiceImpl {
+	
+	@Resource(name="authDAO")
+	private AuthDAO authDAO;
+
+	@Value("${social.kakao.client_id}")
+	private String kakaoClientId;
+
+	@Value("${social.kakao.redirect_uri}")
+	private String kakaoRedirectUri;
+
+	@Value("${social.naver.client_id}")
+	private String naverClientId;
+
+	@Value("${social.naver.client_secret}")
+	private String naverClientSecret;
+
+	@Value("${social.naver.redirect_uri}")
+	private String naverRedirectUri;
+
+	@Value("${social.google.client_id}")
+	private String googleClientId;
+
+	@Value("${social.google.redirect_uri}")
+	private String googleRedirectUri;
+	
+	@Value("${social.google.client_secret}")
+	private String googleClientSecret;
+
+	public UserVO getUser(Map<String, Object> paramMap) {
+		Encrypter.encrypt(paramMap);
+		
+		return authDAO.getUser(paramMap);
+	}
+
+	public int insertUser(Map<String, Object> paramMap) {
+		Encrypter.encrypt(paramMap);
+
+		if(paramMap.get("usr_id").toString().indexOf("lx.or.kr") > -1) {
+			paramMap.put("usr_auth", "03");
+		}else paramMap.put("usr_auth", "02");
+		return authDAO.insertUser(paramMap);
+	}
+
+	public UserVO registerCollisionCheck(Map<String, Object> paramMap) {
+		return authDAO.registerCollisionCheck(paramMap);
+	}
+	
+	public String getKakaoLoginPage (@RequestParam Map<String, Object> paramMap, HttpServletRequest request) {
+		return "redirect:https://kauth.kakao.com/oauth/authorize?response_type=code&client_id="+kakaoClientId+"&redirect_uri="+kakaoRedirectUri+"?loginGb="+paramMap.get("loginGb")+"&scope=account_email profile_nickname";
+	}
+	
+	@SuppressWarnings("unchecked")
+	public String getKakaoUserInfo (Map<String,Object> paramMap, HttpServletRequest request) {
+        String reqURL = "https://kauth.kakao.com/oauth/token";
+        Map<String, Object> result = new HashMap<String, Object>();
+        try {
+            URL url = new URL(reqURL);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            //  URL연결은 입출력에 사용 될 수 있고, POST 혹은 PUT 요청을 하려면 setDoOutput을 true로 설정해야함.
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            //	POST 요청에 필요로 요구하는 파라미터 스트림을 통해 전송
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(conn.getOutputStream()));
+            StringBuilder sb = new StringBuilder();
+            sb.append("grant_type=authorization_code");
+            sb.append("&client_id="+kakaoClientId);
+            sb.append("&redirect_uri="+kakaoRedirectUri+"?loginGb="+paramMap.get("loginGb"));
+            sb.append("&code=" + paramMap.get("code"));
+            bw.write(sb.toString());
+            bw.flush();
+
+            //    요청을 통해 얻은 JSON타입의 Response 메세지 읽어오기
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            result = new ObjectMapper().readValue(br.readLine(), Map.class);
+
+            br.close();
+            bw.close();
+            
+            // 사용자 정보 불러오기
+            result.put("reqUrl", "https://kapi.kakao.com/v2/user/me");
+            result.put("socialGb", "kakao");
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        return getSocialLoginInfo(result, paramMap, request);
+
+    }
+	
+	public String getNaverLoginPage (Map<String,Object> paramMap, HttpServletRequest request) {
+		return "redirect:https://nid.naver.com/oauth2.0/authorize?client_id="+naverClientId+"&response_type=code&redirect_uri="+naverRedirectUri+"?loginGb="+paramMap.get("loginGb")+"&state=NAVER_LOGIN";
+	}
+	
+	@SuppressWarnings("unchecked")
+	public String getNaverUserInfo (Map<String,Object> paramMap, HttpServletRequest request) {
+        String reqURL = "https://nid.naver.com/oauth2.0/token";
+        Map<String, Object> result = new HashMap<String, Object>();
+        try {
+            URL url = new URL(reqURL);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            //  URL연결은 입출력에 사용 될 수 있고, POST 혹은 PUT 요청을 하려면 setDoOutput을 true로 설정해야함.
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            //	POST 요청에 필요로 요구하는 파라미터 스트림을 통해 전송
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(conn.getOutputStream()));
+            StringBuilder sb = new StringBuilder();
+            sb.append("grant_type=authorization_code");
+            sb.append("&client_id="+naverClientId);
+            sb.append("&client_secret="+naverClientSecret);
+            sb.append("&code=" + paramMap.get("code"));
+            sb.append("&state=" + paramMap.get("state"));
+            bw.write(sb.toString());
+            bw.flush();
+
+            //    요청을 통해 얻은 JSON타입의 Response 메세지 읽어오기
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            result = new ObjectMapper().readValue(br.readLine(), Map.class);
+
+            br.close();
+            bw.close();
+            
+            // 사용자 정보 불러오기
+            result.put("reqUrl", "https://openapi.naver.com/v1/nid/me");
+            result.put("socialGb", "naver");
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        return getSocialLoginInfo(result, paramMap, request);
+
+    }
+	
+	public String getGoogleLoginPage (Map<String,Object> paramMap, HttpServletRequest request) {
+		return "redirect:https://accounts.google.com/o/oauth2/v2/auth?client_id="+googleClientId+"&response_type=code&redirect_uri="+googleRedirectUri+"?loginGb="+paramMap.get("loginGb")+"&scope=https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+	}
+	
+	@SuppressWarnings("unchecked")
+	public String getGoogleUserInfo (Map<String,Object> paramMap, HttpServletRequest request) {
+        String reqURL = "https://oauth2.googleapis.com/token";
+        UserVO userInfo = new UserVO();
+        Map<String, Object> result = new HashMap<String, Object>();
+        try {
+            URL url = new URL(reqURL);
+
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+
+            //  URL연결은 입출력에 사용 될 수 있고, POST 혹은 PUT 요청을 하려면 setDoOutput을 true로 설정해야함.
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+
+            //	POST 요청에 필요로 요구하는 파라미터 스트림을 통해 전송
+            BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(conn.getOutputStream()));
+            StringBuilder sb = new StringBuilder();
+            sb.append("grant_type=authorization_code");
+            sb.append("&client_secret="+googleClientSecret);
+            sb.append("&client_id="+googleClientId);
+            sb.append("&redirect_uri="+googleRedirectUri+"?loginGb="+paramMap.get("loginGb"));
+            sb.append("&code=" + paramMap.get("code"));
+            bw.write(sb.toString());
+            bw.flush();
+
+            //    요청을 통해 얻은 JSON타입의 Response 메세지 읽어오기
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+        	String str = "";
+        	String line;
+			while((line = br.readLine()) != null)
+			{
+				str += line;
+			}
+
+            result = new ObjectMapper().readValue(str, Map.class);
+        	 
+            br.close();
+            bw.close();
+            
+            // 사용자 정보 불러오기
+            result.put("reqUrl", "https://www.googleapis.com/oauth2/v3/userinfo");
+            result.put("socialGb", "google");
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+        
+        return getSocialLoginInfo(result, paramMap, request);
+
+    }
+	
+	public String getSocialLoginInfo(Map<String, Object> tokenInfo, Map<String, Object> paramMap, HttpServletRequest request) {
+		String returnUrl = "/main.do";
+		String loginUrl = "/login-sns.do";
+		if(request.getHeader("User-Agent").indexOf("isApp") > -1) {
+			returnUrl = "/mypage.do";
+		};
+		
+		UserVO userInfo = new UserVO();
+        String reqURL = tokenInfo.get("reqUrl").toString();
+        try {
+            URL url = new URL(reqURL);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            //    요청에 필요한 Header에 포함될 내용
+            conn.setRequestProperty("Authorization", "Bearer " + tokenInfo.get("access_token"));
+
+            BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+
+            Map<String, Object> userParam = new HashMap<String, Object>();
+            if(!"google".equals(tokenInfo.get("socialGb"))) {
+	            Map<String, Object> result = new ObjectMapper().readValue(br.readLine(), Map.class);
+	
+	            if("kakao".equals(tokenInfo.get("socialGb"))) {
+		            Map<String, Object> properties = (Map<String, Object>) result.get("properties");
+		            Map<String, Object> kakao_account = (Map<String, Object>) result.get("kakao_account");
+	
+		            userParam.put("usr_id", kakao_account.get("email").toString() + "_" + tokenInfo.get("socialGb"));
+		            userParam.put("usr_nm", properties.get("nickname").toString());
+	            }else if("naver".equals(tokenInfo.get("socialGb"))) {
+	            	Map<String, Object> response = (Map<String, Object>) result.get("response");
+	            	
+	            	userParam.put("usr_id", response.get("email").toString() + "_" + tokenInfo.get("socialGb"));
+	            	userParam.put("usr_nm", response.get("name").toString());
+	            }
+            }else {
+            	String str = "";
+            	String line;
+    			while((line = br.readLine()) != null)
+    			{
+    				str += line;
+    			}
+
+                Map<String, Object> result = new ObjectMapper().readValue(str, Map.class);
+
+                userParam.put("usr_id", result.get("email").toString() + "_" + tokenInfo.get("socialGb"));
+                userParam.put("usr_nm", result.get("name").toString());
+                
+            }
+            
+            userParam.put("usr_login_type", tokenInfo.get("socialGb"));
+            
+            Encrypter.encryptId(userParam);
+    		userInfo = authDAO.getUser(userParam);
+    		
+    		if(userInfo == null) {
+    			userParam.put("usr_auth", "02");
+	            authDAO.insertUser(userParam);
+	            
+	    		userInfo = authDAO.getUser(userParam);
+    		}
+    		
+    		//로그인 세션 처리
+    		request.getSession().setAttribute("user", userInfo);
+
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+    		
+    		request.setAttribute("message", "로그인에 실패하였습니다.");
+    		request.setAttribute("url", loginUrl);
+    		
+    		return "forward:/redirect.do";
+        }
+
+		
+        return "redirect:"+returnUrl;
+	}
+	
+	public String leave(Map<String, Object> paramMap, HttpServletRequest request) {
+		String returnUrl = "/main.do";
+		if(request.getHeader("User-Agent").indexOf("isApp") > -1) {
+			returnUrl = "/login-sns.do";
+		};	
+		SessionManager.getSessionInfo(paramMap);
+		Date nowDate = new Date();
+		SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+		paramMap.put("leaveId", Encrypter.encrypt("SHA-256", (String) paramMap.get("session_usr_id"))+"_"+simpleDateFormat.format(nowDate));
+		authDAO.deleteUser(paramMap);
+    		
+		request.getSession().invalidate();
+		request.setAttribute("message", "탈퇴가 완료되었습니다.");
+		request.setAttribute("url", returnUrl);
+		
+		return "forward:/redirect.do";
+	}
+	
+}

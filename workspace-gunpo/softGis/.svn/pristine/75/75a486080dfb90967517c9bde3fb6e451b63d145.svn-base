@@ -1,0 +1,43 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags"%>
+<t:subapp>
+<div class="notice-main">
+	<div class="notice-wrap">
+		<div class="notice-content">
+			<h1 class="notice-content-title">공지사항</h1>	
+			<div class="notice-view">
+				<div class="notice-title">
+					<div class="title">
+						<strong>제목&emsp;:&emsp;</strong>
+						<span>${noticeDetail.noti_title}</span>
+					</div>
+				</div>
+				<div class="notice-info">
+					<p>
+						<strong>등록일&emsp;:&emsp;</strong>
+						<span>${noticeDetail.reg_dt}</span>
+					</p>
+				</div>
+				<div class="notice-content">
+					<div class="content"><c:out value="${noticeDetail.noti_content}" escapeXml="false"/></div>
+				</div>
+			<c:if test="${not empty noticeDetail.att_file_no}">
+				<div class="notice-file">
+					<div class="file">
+						<strong>첨부파일&ensp;&ensp;</strong>
+						<a href="<c:url value='/file.do?name=${noticeDetail.file_nm_local}'/>">
+						<i class='bx bx-file' style="color:green"></i>
+						${noticeDetail.file_nm_org}
+						</a>
+					</div>
+				</div>
+			</c:if>
+			</div>
+		</div>
+		<div class="button">
+			<a href="/noticeList.do">목록으로 돌아가기</a>
+		</div>
+	</div>
+</div>
+</t:subapp>

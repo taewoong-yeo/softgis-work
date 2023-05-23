@@ -1,0 +1,37 @@
+@mixin ellipsis($line-height: $default-paragraph-line-height * 1em, $line-count: 2, $background-color: #ffffff) {
+	display: block;
+	overflow: hidden;
+	position: relative;
+	line-height: $line-height;
+	max-height: $line-height * $line-count; 
+	// text-align: justify;
+	padding: 0 1em 0 0;
+	
+	&:before {
+		content: '...';
+		position: absolute;
+		right: 0;
+		bottom: 0;
+	}
+	&:after {
+		content: '';
+		position: absolute;
+		right: 0;
+		width: 1em;
+		height: 1em;
+		margin-top: 0.2em;
+		background: $background-color;
+	}
+}
+
+@mixin fa-selector() {
+	.fa, .fas, .far, .fab {
+		@content;
+	}
+}
+
+@mixin bx-selector() {
+	.bx {
+		@content;
+	}
+}

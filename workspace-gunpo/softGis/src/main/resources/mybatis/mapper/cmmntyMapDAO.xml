@@ -1,0 +1,1007 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.cmmntyMap.CmmntyMapDAO">
+	
+	<!-- 커뮤니티매핑 목록 -->
+	<select id="getCmmntyMapList" resultType="hashmap"  timeout = "60">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMapList */
+		SELECT
+			mapng_id
+			, mapng_title
+			, mapng_desc
+			, CASE WHEN start_dt is not null and start_dt != '' THEN start_dt || ' ~ ' || end_dt else '상시' end mapng_dt
+			, start_dt
+			, end_dt
+			, cat_cd
+			, (select cd_nm from base.code where grp_id='DATA_CATE' and cd_id=cat_cd) as cat_nm
+			, area_cd
+			, area_dtl_cd
+			, map_sel_cd
+			, answer_cd
+			, file_id
+			, use_stat
+			, reg_usr_id
+			, (select b.usr_nm from base.usr b where a.reg_usr_id=b.usr_id) as usr_nm
+			, reg_dt
+			, view_cnt
+			, (select count(*) from base.cmmnty_mapng_answer b where a.mapng_id = b.mapng_id ) || '명' as answer_cnt
+			, case when end_dt <![CDATA[<]]> to_char(now(),'YYYY-MM-DD') and end_dt != '' then 'Y' else 'N' end as end_yn
+		FROM BASE.cmmnty_mapng a
+		WHERE use_stat = 'Y'
+			AND temp_yn = 'N'
+		<if test="searchMapngTitle != '' and searchMapngTitle != null">
+			AND mapng_title like '%' || #{searchMapngTitle} || '%'
+		</if>
+		<if test="searchCatCd != '' and searchCatCd != null">
+			AND cat_cd = #{searchCatCd}
+		</if>
+		ORDER BY mapng_id desc
+		<choose>
+			<when test='main_gb == "Y"'>
+		 		LIMIT 20
+		 	</when> 
+		 	<otherwise>
+		 		LIMIT ${dataCountPerPage} OFFSET ${offsetCount}
+		 	</otherwise>
+	 	</choose>
+	</select>
+	
+	<!-- 커뮤니티매핑 목록수 -->
+	<select id="getCmmntyMapCount" parameterType="hashMap" resultType="hashmap">
+		SELECT COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+		FROM base.cmmnty_mapng
+	  	WHERE use_stat ='Y' 
+		AND temp_yn = 'N'
+		<if test="searchMapngTitle != '' and searchMapngTitle != null">
+			AND mapng_title like '%' || #{searchMapngTitle} || '%'
+		</if>
+		<if test="searchCatCd != '' and searchCatCd != null">
+			AND cat_cd = #{searchCatCd}
+		</if>
+	</select>
+	
+	<!-- 커뮤니티매핑 상세 -->
+	<select id="getCmmntyMapDetail" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMapDetail */
+	 	WITH t_feature AS (
+			SELECT
+				array_to_json(array_agg(t2))
+			FROM (
+				SELECT
+					'FeatureCollection' As type
+					, array_to_json(array_agg(t1)) As features
+					, '[' || avg(x) || ', ' || avg(y) || ']' AS center
+				FROM (
+					select
+						'Feature' As type
+						, 'cmmnty' as name
+						, case when a.map_sel_cd = '04' then ST_AsGeoJSON(ST_Buffer(ST_Transform(ST_SetSRID(b.geom, 4326), 3857), b.point_radius, 128))::json 
+							else ST_AsGeoJSON(ST_Transform(ST_SetSRID(b.geom, 4326), 3857))::json end geometry
+						, row_to_json((SELECT l FROM (SELECT b.rnum, b.answer_id, b.answer_title, b.answer_cont, b.answer_usr_id, (select usr_nm from base.usr where usr_id = b.answer_usr_id) AS answer_usr_nm, TO_CHAR(b.reg_dt, 'YYYY.MM.DD HH:MI') AS reg_dt, b.feature_style, b.img_file1, b.img_file2, b.img_file3) AS l)) As properties
+						, ST_X(ST_Centroid(b.geom)) AS x
+						, ST_Y(ST_Centroid(b.geom)) AS y
+					FROM base.cmmnty_mapng a
+					LEFT JOIN (
+						SELECT
+							ROW_NUMBER() OVER(ORDER BY answer_id DESC) AS rnum
+							, * 
+						FROM base.cmmnty_mapng_answer
+						WHERE mapng_id = CAST(#{mapng_id} AS INTEGER)
+					) b on a.mapng_id = b.mapng_id
+					WHERE a.mapng_id = CAST(#{mapng_id} AS INTEGER)
+				) t1
+			) t2
+		)
+		SELECT 
+			a.mapng_id
+			, a.mapng_title
+			, a.mapng_desc
+			, a.start_dt
+			, a.end_dt
+			, a.cat_cd
+			, (SELECT cd_nm FROM base.code WHERE grp_id='DATA_CATE' AND cd_id = a.cat_cd) AS cat_nm
+			, a.area_cd
+			, a.area_dtl_cd
+			, b.sd_nm AS area_nm
+			, b.sgg_nm AS area_dtl_nm
+			, ST_X(b.geom) || ',' || ST_Y(b.geom) AS area_center
+			, a.start_dt
+			, a.end_dt
+			, a.map_sel_cd
+			, a.map_sel_option
+			, a.answer_cd
+			, a.file_id
+			, a.use_stat 
+			, a.reg_usr_id
+			, a.reg_dt 
+			, TRIM(TO_CHAR(COALESCE((SELECT count(*) FROM base.cmmnty_mapng_answer b WHERE b.mapng_id = a.mapng_id ) , 0), '999,999,999,999,999')) AS answer_cnt
+			, (SELECT * FROM t_feature) AS featurecollection
+			, (SELECT COUNT(report_id) 
+				 FROM base.cmmnty_mapng_answer_report r 
+				WHERE a.mapng_id = r.mapng_id AND r.reg_usr_id = #{session_usr_id} AND r.answer_id is null
+			   ) report_cnt
+			, case when end_dt <![CDATA[<]]> to_char(now(),'YYYY-MM-DD') and end_dt != '' then 'Y' else 'N' end as end_yn
+		FROM base.cmmnty_mapng a
+		LEFT JOIN (
+			SELECT sd_cd, sd_nm, sgg_cd, sgg_nm, ST_TransForm(ST_SetSRID(ST_PointOnSurface(geom), 5179), 3857) AS geom FROM base.bnd_sgg
+		) b ON a.area_cd::INTEGER = b.sd_cd AND a.area_dtl_cd::INTEGER = b.sgg_cd
+		WHERE a.mapng_id = CAST(#{mapng_id} AS INTEGER)
+	</select>
+	
+	<!-- 커뮤니티매핑 조회수 -->
+	<update id="updateViewCnt" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.updateViewCnt */
+		UPDATE base.cmmnty_mapng
+		SET	   view_cnt = view_cnt+1
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</update>
+	
+	<!-- 마이페이지 > 내가 작성한 의견 -->
+	<select id="getUsrAnswerList" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getUsrAnswerList */
+		SELECT
+			answer_id
+			, mapng_id
+			, (select mapng_title from base.cmmnty_mapng b where a.mapng_id = b.mapng_id)
+			, answer_title
+			, answer_cont
+			, geom
+			, answer_usr_id
+			, answer_usr_pw
+			, reg_usr_id
+			, TO_CHAR( reg_dt, 'YY-MM-DD') as reg_dt
+			, upt_usr_id
+			, upt_dt
+		FROM BASE.cmmnty_mapng_answer a
+		WHERE answer_usr_id = #{answer_usr_id}
+		ORDER BY answer_id DESC   
+	</select>
+	
+	<!-- 커뮤니티매핑 > 의견 목록 -->
+	<select id="getCmmntyDetailAnswerList" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyDetailAnswerList */
+		SELECT
+			ROW_NUMBER() OVER(ORDER BY answer_id DESC) AS rnum
+			, answer_id
+			, mapng_id
+			, answer_title
+			, answer_cont
+			, geom
+			, answer_usr_id
+			, answer_usr_pw
+			, reg_usr_id
+			, TO_CHAR( reg_dt, 'YY.MM.DD') as reg_dt
+			, upt_usr_id
+			, upt_dt
+			, (SELECT COUNT(report_id) 
+				 FROM base.cmmnty_mapng_answer_report r 
+				WHERE a.mapng_id = r.mapng_id AND a.answer_id = r.answer_id AND r.reg_usr_id = #{session_usr_id} AND answer_id is not null
+			   ) report_cnt
+		FROM BASE.cmmnty_mapng_answer a
+		WHERE mapng_id = #{mapng_id}::INTEGER
+		<if test="search_answer_title != null and search_answer_title != ''">
+		  AND answer_title LIKE '%' || #{search_answer_title} || '%'
+		 </if>
+		ORDER BY answer_id DESC   
+	</select>
+	
+	<!-- 커뮤니티매핑 > 의견 상세 -->
+	<select id="getCmmntyDetailAnswerDetail" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyDetailAnswerDetail */
+		SELECT 
+			answer_id
+			,mapng_id
+			,answer_title
+			,answer_cont
+			,geom
+			,address
+			,answer_usr_id
+			,answer_usr_pw
+			,reg_usr_id 
+			,TO_CHAR( reg_dt, 'YYYY.MM.DD HH:MI') as reg_dt
+			,upt_usr_id
+			,upt_dt
+			, ques_answer1
+			, ques_answer2
+			, ques_answer3
+			, ques_answer4
+			, ques_answer5
+			, (select file_org_nm from base.att_file af where af.file_id = img_file1) as img_file1_nm
+			, (select file_org_nm from base.att_file af where af.file_id = img_file2) as img_file2_nm
+			, (select file_org_nm from base.att_file af where af.file_id = img_file3) as img_file3_nm
+			, img_file1
+			, img_file2
+			, img_file3
+			, feature_style
+			, point_radius
+		FROM BASE.cmmnty_mapng_answer a
+		WHERE answer_id = #{answer_id}::INTEGER
+	</select>
+
+	<!-- 커뮤니티매핑 > 의견 등록 -->
+	<insert id="insertCmmntyAnswer" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.insertCmmntyAnswer */
+		INSERT INTO base.cmmnty_mapng_answer (
+			answer_id
+			, mapng_id
+			, answer_title
+			, answer_cont
+			, geom
+			, address
+			, answer_usr_id
+			, answer_usr_pw
+			, reg_usr_id
+			, reg_dt
+			, upt_usr_id
+			, upt_dt 
+			, feature_style
+			, ques_answer1
+			, ques_answer2
+			, ques_answer3
+			, ques_answer4
+			, ques_answer5
+			, img_file1
+			, img_file2
+			, img_file3
+			<if test="point_radius != '' and point_radius != null ">
+				, point_radius
+			</if>
+		) VALUES (
+			nextval('base.answer_seq')
+			, #{mapng_id}::INTEGER
+			, #{answer_title}
+			, #{answer_cont}
+			, #{geom}
+			, #{address}
+			, #{answer_usr_id}
+			, #{answer_usr_pw}
+			, #{session_usr_id}
+			, NOW()
+			, #{session_usr_id}
+			, NOW()
+			, #{feature_style}
+			, #{ques_answer1}
+			, #{ques_answer2}
+			, #{ques_answer3}
+			, #{ques_answer4}
+			, #{ques_answer5}
+			, #{img_file1}
+			, #{img_file2}
+			, #{img_file3}
+			<if test="point_radius != '' and point_radius != null ">
+				, #{point_radius}::INTEGER
+			</if>
+		)
+		<selectKey resultType="integer" keyProperty="answer_id" order="AFTER">
+			SELECT CURRVAL('base.answer_seq');
+		</selectKey>
+	</insert>	
+	
+	
+	<!-- 커뮤니티매핑 > 의견 수정 -->
+	<update id="updateCmmntyAnswer" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.updateCmmntyAnswer */
+		UPDATE base.cmmnty_mapng_answer
+		SET 
+			answer_title =  #{answer_title}
+			, answer_cont = #{answer_cont}
+			, ques_answer1 = #{ques_answer1} 
+			, ques_answer2 = #{ques_answer2} 
+			, ques_answer3 = #{ques_answer3} 
+			, ques_answer4 = #{ques_answer4} 
+			, ques_answer5 = #{ques_answer5} 
+			, geom = #{geom}
+			, address = #{address}
+			, feature_style = #{feature_style}
+			, img_file1 = #{img_file1}::INTEGER
+			, img_file2 = #{img_file2}::INTEGER
+			, img_file3 = #{img_file3}::INTEGER
+			, upt_dt = NOW()
+			<if test="point_radius != '' and point_radius != null ">
+			, point_radius = #{point_radius}::INTEGER
+			</if>
+		WHERE answer_id = #{answer_id}::INTEGER
+			AND mapng_id = #{mapng_id}::INTEGER
+	</update>
+	
+	
+	
+	
+	
+	
+	<!-- 커뮤니티매핑 > 의견 삭제 -->
+	<delete id="deleteCmmntyAnswer" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.deleteCmmntyAnswer */
+	 	
+		DELETE FROM base.cmmnty_mapng_answer 
+		Where answer_id = #{answer_id}::INTEGER
+		And answer_usr_id =#{answer_usr_id}
+		And answer_usr_pw =#{answer_usr_pw}
+		  
+	</delete>
+	
+	<!-- 커뮤니티매핑 > 의견 삭제(관리자) -->
+	<delete id="deleteCmmntyAnswerByAdmin" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.deleteCmmntyAnswerByAdmin */
+	 	
+		DELETE FROM base.cmmnty_mapng_answer 
+		Where answer_id = #{answer_id}::INTEGER
+		  
+	</delete>
+	
+	
+	<select id="getCheckAnswerIdPwd" parameterType="hashMap" resultType="integer">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCheckAnswerIdPwd */
+	
+		SELECT COUNT(*)
+		FROM base.cmmnty_mapng_answer 
+		Where answer_id = #{answer_id}::INTEGER
+		And answer_usr_id =#{answer_usr_id}
+		And answer_usr_pw =#{answer_usr_pw}
+		
+	</select> 
+	
+	<select id="getCheckReportCmmntyAnswer" parameterType="hashMap" resultType="integer">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCheckReportCmmntyAnswer */
+		SELECT COUNT(*)
+		  FROM base.cmmnty_mapng_answer_report 
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+		   AND reg_usr_id = #{session_usr_id}
+		<choose>
+			<when test="answer_id != null and answer_id != ''">
+		   		AND answer_id = #{answer_id}::INTEGER
+		 	</when> 
+		 	<otherwise>
+		   		AND answer_id is null
+		 	</otherwise>
+	 	</choose>
+	</select> 
+	
+	<!-- 커뮤니티매핑 의견 신고하기 -->
+	<insert id="insertReportCmmntyAnswer" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.insertReportCmmntyAnswer */
+		INSERT
+		  INTO base.cmmnty_mapng_answer_report (
+			   mapng_id
+				,answer_id
+				,report_cd
+				,report_cont
+				,reg_usr_id
+				,reg_dt
+				,report_status
+		  ) VALUES (
+			    #{mapng_id}::INTEGER
+			   , #{answer_id}::INTEGER
+			   , #{report_cd}
+			   , #{report_cont}
+			   , #{session_usr_id}
+			   , NOW()
+			   , #{report_status}
+		  )
+	</insert>	
+	
+	<!-- 커뮤니티매핑 > 신고하기 삭제 -->
+	<delete id="deleteReportCmmntyAnswer" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.deleteReportCmmntyAnswer */
+		DELETE FROM base.cmmnty_mapng_answer_report 
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+		   AND reg_usr_id = #{session_usr_id}
+		<choose>
+			<when test="answer_id != null and answer_id != ''">
+		   		AND answer_id = #{answer_id}::INTEGER
+		 	</when> 
+		 	<otherwise>
+		   		AND answer_id is null
+		 	</otherwise>
+	 	</choose>
+	</delete>
+
+	<!-- 커뮤니티매핑 등록 -->
+	<insert id="insertCmmntyMap" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.insertCmmntyMap */
+		INSERT
+		  INTO base.cmmnty_mapng (
+			   mapng_id
+				,mapng_title
+				,mapng_desc
+				,start_dt
+				,end_dt
+				,cat_cd
+				,area_cd
+				,area_dtl_cd
+				,map_sel_cd
+				,answer_cd
+				,file_id
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+				,temp_yn
+				,map_sel_option
+		  ) VALUES (
+			   nextval('base.cmmnty_mapng_seq')
+			   , #{mapng_title}
+			   , #{mapng_desc}
+			   , #{start_dt}
+			   , #{end_dt}
+			   , #{cat_cd}
+			   , #{area_cd}
+			   , #{area_dtl_cd}
+			   , #{map_sel_cd}
+			   , #{answer_cd}
+			   , CASE WHEN #{file_id}::INTEGER = 0 THEN NULL ELSE #{file_id}::INTEGER END
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+			   , #{temp_yn}
+			   , #{map_sel_option}
+		  )
+		<selectKey resultType="integer" keyProperty="mapng_id" order="AFTER">
+			SELECT CURRVAL('base.cmmnty_mapng_seq');
+		</selectKey>
+	</insert>	
+	
+	<!-- 커뮤니티매핑 삭제 -->
+	<delete id="deleteCmmntyMap" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.deleteCmmntyMap */
+		UPDATE base.cmmnty_mapng
+		SET  use_stat = 'N'
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</delete>	
+	
+	<!-- 커뮤니티매핑 위치데이터 조회 -->
+	<select id="getCmmntyMapDataList" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMapDataList */
+		SELECT mapng_id
+				, data_wms
+				, data_style
+				, data_nm
+		FROM base.cmmnty_mapng_map_data
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</select>
+	
+	<select id="getDataCatlog" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getDataCatlog */
+		SELECT 
+			a.mta_id, a.mta_cd, a.mta_tbl, a.mta_nm, a.mta_desc
+			, a.mta_src, a.mta_fcly, b.cd_nm AS mta_fcly_nm, a.mta_gther, c.cd_nm AS mta_gther_nm
+			, a.mta_url, a.mta_cat, d.cd_nm AS mta_cat_nm, to_char(a.reg_dt, 'YYYY년 MM월 DD일') AS reg_dt
+		FROM base.mta_data a
+		LEFT OUTER JOIN base.code b ON a.mta_fcly = b.cd_id AND b.grp_id = 'DATA_FCLY'
+		LEFT OUTER JOIN base.code c ON a.mta_gther = c.cd_id AND c.grp_id = 'DATA_GTHER'
+		LEFT OUTER JOIN base.code d ON a.mta_cat = d.cd_id AND d.grp_id = 'DATA_CATE'
+		WHERE a.use_stat = 'Y'
+		ORDER BY a.mta_id;
+	</select>
+	
+	<!-- 커뮤니티매핑 위치데이터 저장 -->
+	<insert id="insertCmmntyMapData" parameterType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.insertCmmntyMapData */
+		INSERT INTO base.cmmnty_mapng_map_data
+			(
+			mapng_id
+			, data_wms
+			, data_style
+			, data_nm
+			, reg_usr_id
+			, reg_dt
+			)
+		VALUES (
+			#{mapng_id}::INTEGER
+			, #{data_wms}
+			, #{data_style}
+			, #{data_nm}
+			, #{session_usr_id}
+			, NOW()
+			)
+	</insert>
+	
+	<!-- 커뮤니티매핑 위치데이터 삭제 -->
+	<delete id="deleteCmmntyMapData" parameterType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.deleteCmmntyMapData */
+		DELETE FROM base.cmmnty_mapng_map_data
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</delete>
+	
+	<!-- 커뮤니티매핑 옵션 -->
+	<!-- 커뮤니티매핑 옵션 목록 -->
+	<select id="getCmmntyMapQuesList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMapQues */
+		SELECT ques_id
+				, mapng_id
+				, ques_nm
+				, ques_desc
+				, ans_opt_cd
+		FROM base.cmmnty_mapng_ques
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</select>
+
+	<!-- 커뮤니티매핑 옵션 등록 -->
+	<insert id="insertCmmntyMapQues" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.insertCmmntyMapQues */
+		INSERT
+		  INTO base.cmmnty_mapng_ques (
+			   ques_id
+				, mapng_id
+				, ques_nm
+				, ques_desc
+				, ans_opt_cd
+				, use_stat
+				, reg_usr_id
+				, reg_dt
+		  ) VALUES (
+			   nextval('base.cmmnty_mapng_ques_seq')
+			   , #{mapng_id}::INTEGER
+			   , #{ques_nm}
+			   , #{ques_desc}
+			   , #{ans_opt_cd}
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+		  )
+		<selectKey resultType="integer" keyProperty="ques_id" order="AFTER">
+			SELECT CURRVAL('base.cmmnty_mapng_ques_seq');
+		</selectKey>
+	</insert>
+
+	<!-- 커뮤니티매핑 객관식 옵션 등록 -->
+	<insert id="insertCmmntyMapQuesOption" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.insertCmmntyMapQuesOption */
+		INSERT
+		  INTO base.ques_option (
+			   opt_id
+				, ques_id
+				, opt_desc
+				, use_stat
+				, reg_usr_id
+				, reg_dt
+		  ) VALUES (
+			   nextval('base.ques_option_seq')
+			   , #{ques_id}::INTEGER
+			   , #{opt_desc}
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+		  )
+	</insert>
+	
+	<!-- 커뮤니티매핑 옵션 삭제 -->
+	<delete id="deleteCmmntyMapQues" parameterType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.deleteCmmntyMapQues */
+		DELETE FROM base.cmmnty_mapng_ques
+		WHERE mapng_id = #{mapng_id}::INTEGER
+	</delete>
+	
+	<!-- 커뮤니티맵핑 질문 목록 -->
+	<select id="getCmmntyQuesList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesList */
+		SELECT 
+			a.ques_nm 
+			,a.ans_opt_cd
+			,(
+				select array_to_string(array_agg(concat(b.opt_id, '-',b.opt_desc ) ),',') from base.ques_option b where a.ques_id = b.ques_id and b.use_stat ='Y'
+			) as choice_list
+		FROM 
+		base.cmmnty_mapng_ques a
+		WHERE a.mapng_id = #{mapng_id}::INTEGER
+	</select>
+	
+	<!-- 커뮤니티매핑 마커별 통계 -->
+	<select id="getCmmntyPointStats" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyPointStats */
+		select regexp_replace(feature_style, '[\[|\]]','','g')::json ->> 'desc' as name , count(feature_style) as y
+		from BASE.cmmnty_mapng_answer cma 
+		where mapng_id = #{mapng_id}::INTEGER
+		group by feature_style
+	</select>
+	
+	<!-- 커뮤니티매핑 지역별 통계 -->
+	<select id="getCmmntyGeomStats" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyGeomStats */
+		WITH t_answer AS (
+			SELECT
+				ST_TransForm(ST_SetSRID(ST_GeomFromeWKT(geom), 4326), 5179) AS geometry
+			FROM base.cmmnty_mapng_answer
+			WHERE mapng_id = #{mapng_id}::INTEGER
+				AND COALESCE(geom, '') != ''
+		)
+		SELECT
+			'dong' AS type
+			, adm_dr_cd::INTEGER AS cd
+			, b.adm_dr_nm AS name
+			, COUNT(*) AS y
+		FROM t_answer a, base.bnd_adm_dong b
+		WHERE ST_Contains(b.geom, a.geometry) = TRUE
+		GROUP BY b.adm_dr_cd, b.adm_dr_nm
+		UNION ALL
+		SELECT
+			'sd' AS type
+			, sd_cd::INTEGER AS cd
+			, b.sd_nm AS name
+			, COUNT(*) AS y
+		FROM t_answer a, base.bnd_sgg b
+		WHERE ST_Contains(b.geometry, a.geometry) = TRUE
+		GROUP BY b.sd_cd, b.sd_nm
+		ORDER BY cd
+	</select>
+	
+	<select id="getCmmntyGeomStatsDetail" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyGeomStatsDetail */
+		WITH t_answer AS (
+			SELECT
+				ST_TransForm(ST_SetSRID(ST_GeomFromeWKT(geom), 4326), 5179) AS geometry
+			FROM base.cmmnty_mapng_answer
+			WHERE mapng_id = #{mapng_id}::INTEGER
+				AND COALESCE(geom, '') != ''
+		)
+		SELECT
+			b.sgg_nm AS name
+			, COUNT(*) AS y
+		FROM t_answer a, base.bnd_sgg b
+		WHERE ST_Contains(b.geometry, a.geometry) = TRUE
+		GROUP BY b.sgg_cd, b.sgg_nm
+		ORDER BY b.sgg_cd
+	</select>
+	
+	<!-- 질문별 통계 -->
+	<select id="getCmmntyQuesStats1" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats1 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer1
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats2" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats2 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer2
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats3" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats3 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer3
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats4" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats4 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer4
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats5" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats5 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer5
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats6" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats6 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer6
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats7" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats7 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer7
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats8" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats8 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer8
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats9" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats9 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer9
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	<select id="getCmmntyQuesStats10" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyQuesStats10 */
+	 	select count(*) as y, opt_desc as name
+		from base.cmmnty_mapng_answer cma, base.cmmnty_mapng_ques cmq, base.ques_option qo 
+		where cma.mapng_id = cmq.mapng_id 
+		and cmq.ques_id = qo.ques_id 
+		and cmq.ans_opt_cd = '03'
+		and qo.opt_id::varchar = cma.ques_answer10
+		and cma.mapng_id = #{mapng_id}::INTEGER
+		group by opt_desc
+	</select>
+	
+	
+	
+	<!-- 커뮤니티매핑 대시보드 -->
+	<!-- 카테고리별 등록건수 -->
+	<select id="getCmmntyCatCount" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyCatCount */
+		select (select cd_nm from base.code where cd_id=cat_cd) as name, count(cat_cd) as y
+		from base.cmmnty_mapng cm 
+		where temp_yn = 'N'
+		<if test="eDate != null and eDate != ''">
+			and to_char(reg_dt,'YYYY-MM') = #{eDate}
+		</if>
+		group by cat_cd
+	</select>
+	
+	<!-- 카테고리별 응답 건수 -->
+	<select id="getCmmntyAnswerCatCount" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyAnswerCatCount */
+		select (select cd_nm from base.code where cd_id=cat_cd) as name, count(cat_cd) as y
+		from base.cmmnty_mapng_answer cma left outer join base.cmmnty_mapng cm 
+		on cma.mapng_id = cm.mapng_id
+		where temp_yn = 'N'
+		<if test="eDate != null and eDate != ''">
+			and to_char(cma.reg_dt,'YYYY-MM') = #{eDate}
+		</if>
+		group by cat_cd
+	</select>
+	
+	<!-- 기간별 등록건수 -->
+	<select id="getCmmntyMonthCount" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMonthCount */
+		select to_char(reg_dt, 'YYYY-MM') as name, count(reg_dt) as "응답자 수"
+		from base.cmmnty_mapng cm 
+		where to_char(reg_dt, 'YYYY-MM') <![CDATA[ > ]]> to_char(now()::date - '1 year'::interval,'YYYY-MM')
+		and temp_yn = 'N'
+		<if test="cat_cd != null and cat_cd != ''">
+			and cat_cd = #{cat_cd}
+		</if>
+		group by to_char(reg_dt, 'YYYY-MM')
+		order by to_char(reg_dt, 'YYYY-MM')
+	</select>
+	
+	<!-- 기간별 응답 건수 -->
+	<select id="getCmmntyAnswerMonthCount" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyAnswerMonthCount */
+		select to_char(cma.reg_dt, 'YYYY-MM') as name, count(*) as "응답자 수"
+		from base.cmmnty_mapng_answer cma left outer join base.cmmnty_mapng cm 
+		on cma.mapng_id = cm.mapng_id
+		where to_char(cma.reg_dt, 'YYYY-MM') <![CDATA[ > ]]> to_char(now()::date - '1 year'::interval,'YYYY-MM')
+		and temp_yn = 'N'
+		<if test="cat_cd != null and cat_cd != ''">
+			and cat_cd = #{cat_cd}
+		</if>
+		group by to_char(cma.reg_dt, 'YYYY-MM')
+	</select>
+	
+	<!-- 인기 커뮤니티매핑 (참여수) -->
+	<select id="getCmmntyMostAnswerRank" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyMostAnswerRank */
+		select (select cd_nm from base.code where cd_id=cat_cd) as cat_nm, 
+				mapng_title, 
+				(select count(*) from base.cmmnty_mapng_answer cma where cma.mapng_id = cm.mapng_id ) as answer_cnt
+		from base.cmmnty_mapng cm 
+		where temp_yn = 'N'
+		<if test="cat_cd != null and cat_cd != ''">
+			and cat_cd = #{cat_cd}
+		</if>
+		<if test="eDate != null and eDate != ''">
+			and to_char(reg_dt,'YYYY-MM') = #{eDate}
+		</if>
+		order by answer_cnt desc
+		limit 15
+	</select>
+	
+	<!-- 인기 커뮤니티매핑 (조회수) -->
+	<select id="getCmmntyMostViewRank" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.cmmntyMostAnswerRank */
+		select 
+				(select cd_nm from base.code where cd_id=cat_cd) as cat_nm, 
+				mapng_title, 
+				view_cnt as view_cnt
+		from base.cmmnty_mapng cm 
+		where temp_yn = 'N'
+		<if test="cat_cd != null and cat_cd != ''">
+			and cat_cd = #{cat_cd}
+		</if>
+		<if test="eDate != null and eDate != ''">
+			and to_char(reg_dt,'YYYY-MM') = #{eDate}
+		</if>
+		order by view_cnt desc
+		limit 15
+	</select>
+	
+	<!-- 응답 워드클라우드 -->
+	<select id="getCmmntyAnswerWordCloud" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyAnswerWordCloud */
+		select sd_nm as name, count as weight
+		from word_cloud_test
+	</select>
+	
+	<!-- 지역별 응답자 수 -->
+	<select id="getCmmntyGeomTotAnswerCount" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyGeomTotAnswerCount */
+		WITH t_answer AS (
+			SELECT
+				ST_TransForm(ST_SetSRID(ST_GeomFromeWKT(geom), 4326), 5179) AS geometry
+				, (select cat_cd from base.cmmnty_mapng cm where cm.mapng_id=cma.mapng_id) as cat_cd
+				, to_char(reg_dt, 'YYYY-MM') as reg_dt
+			FROM base.cmmnty_mapng_answer cma
+			WHERE COALESCE(geom, '') != ''
+		)
+		SELECT
+			b.sd_nm AS name
+			, b.sd_cd AS "hiddenValue"
+			, COUNT(*) AS y
+		FROM t_answer a, base.bnd_sgg b
+		WHERE ST_Contains(b.geometry, a.geometry) = true
+		<if test="cat_cd != null and cat_cd != ''">
+			AND cat_cd = #{cat_cd}
+		</if>
+		<if test="eDate != null and eDate != ''">
+			AND a.reg_dt = #{eDate}
+		</if>
+		GROUP BY b.sd_cd, b.sd_nm
+		ORDER BY b.sd_cd
+	</select>
+	
+	<!-- 시군구별 응답자 수 -->
+	<select id="getCmmntyGeomSggAnswerCount" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyGeomSggAnswerCount */
+		WITH t_answer AS (
+			SELECT
+				ST_TransForm(ST_SetSRID(ST_GeomFromeWKT(geom), 4326), 5179) AS geometry
+				, (select cat_cd from base.cmmnty_mapng cm where cm.mapng_id=cma.mapng_id) as cat_cd
+				, to_char(reg_dt, 'YYYY-MM') as reg_dt
+			FROM base.cmmnty_mapng_answer cma
+			WHERE COALESCE(geom, '') != ''
+		)
+		SELECT
+			b.sgg_nm AS name
+			, COUNT(*) AS y
+		FROM t_answer a, base.bnd_sgg b
+		WHERE ST_Contains(b.geometry, a.geometry) = true
+		AND b.sd_cd = #{sd_cd}::Integer
+		<if test="cat_cd != null and cat_cd != ''">
+			AND cat_cd = #{cat_cd}
+		</if>
+		<if test="eDate != null and eDate != ''">
+			AND a.reg_dt = #{eDate}
+		</if>
+		GROUP BY b.sgg_cd, b.sgg_nm
+		ORDER BY b.sgg_cd
+	</select>
+	
+	<!-- 월별 카테고리 응답자 수 -->
+	<select id="getCmmntyAnswerCatStatistics" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyAnswerCatStatistics */
+		select to_char(cma.reg_dt, 'YYYY-MM') as YYYYMM
+				, count(cma.reg_dt) as tot
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm01')  as brm01
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm02') as brm02
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm03') as brm03
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm04') as brm04
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm05') as brm05
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm06') as brm06
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm07') as brm07
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm08') as brm08
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm09') as brm09
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm10') as brm10 
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm11') as brm11 
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm12') as brm12 
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm13') as brm13
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm14') as brm14
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm15') as brm15
+				, count(cma.reg_dt) FILTER (WHERE cat_cd = 'brm16') as brm16
+		from base.cmmnty_mapng_answer cma left outer join base.cmmnty_mapng cm 
+		on cma.mapng_id = cm.mapng_id
+		where cm.use_stat = 'Y'
+		<if test="yyyy != null and yyyy != ''">
+			and to_char(cma.reg_dt,'YYYY') = #{yyyy}
+		</if>
+		group by to_char(cma.reg_dt, 'YYYY-MM')
+		order by to_char(cma.reg_dt, 'YYYY-MM')
+	</select>
+	
+	<!-- 지역별 카테고리 응답자 수 -->
+	<select id="getCmmntyAnswerGeomStatistics" parameterType="hashmap" resultType="hashmap">
+		/* softGis.cmmntyMap.CmmntyMapDAO.getCmmntyAnswerGeomStatistics */
+		WITH t_answer AS (
+			SELECT
+				ST_TransForm(ST_SetSRID(ST_GeomFromeWKT(geom), 4326), 5179) AS geometry
+				, (select cat_cd from base.cmmnty_mapng cm where cm.mapng_id=cma.mapng_id) as cat_cd
+				, to_char(cma.reg_dt,'YYYY-MM') as reg_dt
+			FROM base.cmmnty_mapng_answer cma
+			WHERE COALESCE(geom, '') != ''
+		)
+		SELECT
+			b.sd_nm AS name
+			, count(b.sd_nm) as tot
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm01')  as brm01
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm02') as brm02
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm03') as brm03
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm04') as brm04
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm05') as brm05
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm06') as brm06
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm07') as brm07
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm08') as brm08
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm09') as brm09
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm10') as brm10 
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm11') as brm11 
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm12') as brm12 
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm13') as brm13
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm14') as brm14
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm15') as brm15
+			, count(b.sd_nm) FILTER (WHERE cat_cd = 'brm16') as brm16
+		FROM t_answer a, base.bnd_sgg b
+		WHERE ST_Contains(b.geometry, a.geometry) = true
+		<if test="yyyy != null and yyyy != ''">
+			and to_char(to_date(a.reg_dt, 'YYYY-MM'),'YYYY') = #{yyyy}
+		</if>
+		group by b.sd_cd ,b.sd_nm
+		ORDER BY b.sd_cd
+	</select>
+	
+	<select id="getDataCatlogGeojson" resultType="String" useCache="false">
+		SELECT JSONB_BUILD_OBJECT(
+			'type', 'FeatureCollection', 'features', JSONB_AGG(features.feature) ) AS geojson
+		FROM (
+			SELECT JSONB_BUILD_OBJECT(
+				'type', 'Feature', 'geometry', ST_AsGeoJSON(ST_TransForm(geom, 3857))::jsonb, 'properties', TO_JSONB(inputs) - 'geom'
+			) AS feature
+			FROM (
+				SELECT *
+				FROM data_catalog."${table}"
+				ORDER BY ctid
+			) inputs
+		) features;
+	</select>
+	
+</mapper>

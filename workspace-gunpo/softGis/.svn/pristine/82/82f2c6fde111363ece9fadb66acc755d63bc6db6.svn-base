@@ -1,0 +1,8 @@
+package softGis.admin.notice;
+
+import org.mapstruct.Mapping;
+
+public class AdminNoticeController {
+
+
+}

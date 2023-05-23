@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.dashboard.DashboardDAO">
+
+	<!-- 전체 빈집 가구수 -->
+	<select id="yearEmptyHouseCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearEmptyHouseCount */
+		SELECT
+			SUM(replace(SUM_CNT, ',', '')::INTEGER) AS Y,
+			YYYY as name
+		FROM MDL_DATA.seoul_empty_house_2020 seh
+		<if test="nmSgg != '' and nmSgg != null">
+			WHERE NM_SGG = #{nmSgg}
+		</if>
+		GROUP by YYYY
+		UNION ALL 
+		SELECT
+		<choose>
+		<when test="nmSgg != '' and nmSgg != null">
+			DISTINCT ${nmSgg}::INTEGER AS y
+		</when>
+		<otherwise>
+			DISTINCT ("강남구"+"강동구"+"강북구"+"강서구"+"관악구"+"광진구"+"구로구"+"금천구"+"노원구"+"도봉구"+"동대문구"+"동작구"+"마포구"+"서대문구"+"서초구"+"성동구"+"성북구"+"송파구"+"양천구"+"영등포구"+"용산구"+"은평구"+"종로구"+"중구"+"중랑구")::INTEGER AS y
+		</otherwise>
+		</choose>
+			, 2021 AS name
+		FROM mdl_result.seoul_empty_house_20220921
+		ORDER BY name
+	</select>
+
+	<!-- 거주형태별 빈집 가구수 -->
+	<select id="yearStleEmptyHouseCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearStleEmptyHouseCount */
+		select SUM(REPLACE(CNT_01,',','')::INTEGER) as "단독주택"
+			, SUM(REPLACE(CNT_02,',','')::INTEGER) as "아파트"
+			, SUM(CNT_03) as "연립주택"
+			, SUM(REPLACE(CNT_04,',','')::INTEGER) as "다세대주택"
+			, SUM(CNT_05) as "비주거용건물"
+			, YYYY as name
+		from  MDL_DATA.seoul_empty_house_2020 seh
+		<if test="nmSgg != '' and nmSgg != null">
+			WHERE NM_SGG = #{nmSgg}
+		</if>
+		group by YYYY
+		order by YYYY
+	</select>
+	
+	<!-- 거주형태별 빈집 비율 -->
+	<select id="stleEmptyHouseRate" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearStleEmptyHouseRate */
+		SELECT ROUND((SUM(REPLACE(CNT_01,',','')::DOUBLE PRECISION)/SUM(REPLACE(SUM_CNT,',','')::DOUBLE PRECISION)*100)::numeric ,2) as "단독주택"
+				, ROUND((SUM(REPLACE(CNT_02,',','')::DOUBLE PRECISION)/SUM(REPLACE(SUM_CNT,',','')::DOUBLE PRECISION)*100)::numeric ,2) as "아파트"
+				, ROUND((SUM(CNT_03::DOUBLE PRECISION)/SUM(REPLACE(SUM_CNT,',','')::DOUBLE PRECISION)*100)::numeric ,2) as "연립주택"
+				, ROUND((SUM(REPLACE(CNT_04,',','')::DOUBLE PRECISION)/SUM(REPLACE(SUM_CNT,',','')::DOUBLE PRECISION)*100)::numeric ,2) as "다세대주택"
+				, ROUND((SUM(CNT_05::DOUBLE PRECISION)/SUM(REPLACE(SUM_CNT,',','')::DOUBLE PRECISION)*100)::numeric ,2) as "비주거용건물"
+		FROM  MDL_DATA.seoul_empty_house_2020 seh
+		<if test="yyyy != '' and yyyy != null">
+			<choose>
+			<when test="yyyy > 2020">
+				WHERE yyyy = 2020
+			</when>
+			<otherwise>
+				WHERE yyyy = #{yyyy}::INTEGER
+			</otherwise>
+			</choose>
+		</if>
+		<if test="nmSgg != '' and nmSgg != null">
+			AND NM_SGG = #{nmSgg}
+		</if>
+	</select>
+	
+	<!-- 지역별 빈집 현황 -->
+	<select id="areaEmptyHouseCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.areaEmptyHouseCount */
+		select (REPLACE(CNT_01,',','')::numeric+REPLACE(CNT_02,',','')::numeric+cnt_03+REPLACE(CNT_04,',','')::numeric+cnt_05)::numeric as max
+				, nm_sgg as name
+				, REPLACE(CNT_01,',','')::numeric as "단독주택"
+				, REPLACE(CNT_02,',','')::numeric as "아파트"
+				, cnt_03 as "연립주택"
+				, REPLACE(CNT_04,',','')::numeric as "다세대주택"
+				, cnt_05 as "비주거용건물"
+		from MDL_DATA.seoul_empty_house_2020 seh
+		<if test="yyyy != '' and yyyy != null">
+			<choose>
+			<when test="yyyy > 2020">
+				WHERE yyyy = 2020
+			</when>
+			<otherwise>
+				WHERE yyyy = #{yyyy}::INTEGER
+			</otherwise>
+			</choose>
+		</if>
+	</select>
+	
+	<!-- 거주형태별 빈집 증감 현황 -->
+	<select id="stleEmptyHouseIncrease" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.stleEmptyHouseIncrease */
+		select seh.yyyy as name
+				, case when sub.cnt_01 != 0 then round(((seh.cnt_01 - sub.cnt_01)/sub.cnt_01)*100,2) else null end as "단독주택"
+				, case when sub.cnt_02 != 0 then round(((seh.cnt_02 - sub.cnt_02)/sub.cnt_02)*100,2) else null end as "아파트"
+				, case when sub.cnt_03 != 0 then round(((seh.cnt_03 - sub.cnt_03)::numeric/sub.cnt_03)*100,2) else null end as "연립주택"
+				, case when sub.cnt_04 != 0 then round(((seh.cnt_04 - sub.cnt_04)/sub.cnt_04)*100,2) else null end as "다세대주택"
+				, case when sub.cnt_05 != 0 then round(((seh.cnt_05 - sub.cnt_05)::numeric/sub.cnt_05)*100,2) else null end as "비주거용건물"
+		from (
+			select seh.yyyy as yyyy
+					, sum(REPLACE(CNT_01,',','')::numeric) as cnt_01
+					, sum(REPLACE(CNT_02,',','')::numeric) as cnt_02
+					, sum(seh.cnt_03) as cnt_03
+					, sum(REPLACE(CNT_04,',','')::numeric) as cnt_04
+					, sum(seh.cnt_05) as cnt_05
+			from MDL_DATA.seoul_empty_house_2020 seh
+			<if test="nmSgg != '' and nmSgg != null">
+				where NM_SGG = #{nmSgg}
+			</if>
+			group by seh.yyyy
+			order by yyyy) seh left outer join (
+			select seh.yyyy+1 as yyyy
+					, sum(REPLACE(CNT_01,',','')::numeric) as cnt_01
+					, sum(REPLACE(CNT_02,',','')::numeric) as cnt_02
+					, sum(seh.cnt_03) as cnt_03
+					, sum(REPLACE(CNT_04,',','')::numeric) as cnt_04
+					, sum(seh.cnt_05) as cnt_05
+			from MDL_DATA.seoul_empty_house_2020 seh
+			<if test="nmSgg != '' and nmSgg != null">
+				where NM_SGG = #{nmSgg}
+			</if>
+			group by seh.yyyy
+			order by yyyy) sub
+		on seh.yyyy=sub.yyyy
+		where seh.yyyy > 2015
+	</select>	
+	
+	<!-- 지역별 노후주택 현황 -->
+	<select id="areaOldBuildingHouseCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.areaOldBuildingHouseCount */
+		select count(sgg_cd) as y, sgg_nm as name
+		from data_catalog.${tableName}
+		group by sgg_nm
+	</select>
+	
+	
+	<!-- 자원순환 -->
+	<!-- 년도별 전체 쓰레기 현황 -->
+	<select id="yearWasteCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearWasteCount */
+		select SUM(REPLACE(household_waste,',','')::DOUBLE precision)::numeric as "생활폐기물"
+				, SUM(business_waste)::numeric as "사업장폐기물"
+				, yyyy as name
+		from mdl_data.seoul_waste_2020
+		<if test="nmSgg != '' and nmSgg != null">
+			where NM_SGG = #{nmSgg}
+		</if>
+		group by yyyy
+		order by yyyy
+	</select>
+	
+	<!-- 지역별 쓰레기 현황 -->
+	<select id="areaWasteCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearWasteCount */
+		select SUM(REPLACE(household_waste,',','')::DOUBLE precision)::numeric as "생활폐기물"
+				, SUM(business_waste)::numeric as "사업장폐기물"
+				, nm_sgg as name
+		from mdl_data.seoul_waste_2020
+		<if test="yyyy != '' and yyyy != null">
+			<choose>
+			<when test="yyyy > 2020">
+				WHERE yyyy = 2020
+			</when>
+			<otherwise>
+				WHERE yyyy = #{yyyy}::INTEGER
+			</otherwise>
+			</choose>
+		</if>
+		group by nm_sgg
+	</select>
+	
+	<!-- 년도별 쓰레기 증감 -->
+	<select id="yearWasteIncrease" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.yearWasteIncrease */
+		select sw.yyyy as name
+				, case when sub.household_waste != 0 then round(((sw.household_waste - sub.household_waste)/sub.household_waste)*100,2) else null end as "생활폐기물"
+				, case when sub.business_waste != 0 then round(((sw.business_waste - sub.business_waste)/sub.business_waste)*100,2) else null end as "사업장폐기물"
+		from (
+			select sw.yyyy as yyyy
+					, sum(REPLACE(household_waste,',','')::numeric) as household_waste
+					, sum(business_waste)::numeric as business_waste
+			from MDL_DATA.seoul_waste_2020 sw
+			<if test="nmSgg != '' and nmSgg != null">
+				where NM_SGG = #{nmSgg}
+			</if>
+			group by sw.yyyy
+			order by yyyy) sw left outer join (
+			select sw.yyyy+1 as yyyy
+					, sum(REPLACE(household_waste,',','')::numeric) as household_waste
+					, sum(business_waste)::numeric as business_waste
+			from MDL_DATA.seoul_waste_2020 sw
+			<if test="nmSgg != '' and nmSgg != null">
+				where NM_SGG = #{nmSgg}
+			</if>
+			group by sw.yyyy
+			order by yyyy) sub
+		on sw.yyyy=sub.yyyy
+		where sw.yyyy > 2010
+	</select>
+	
+	<!-- 지역별 인구수 -->
+	<select id="areaPopltnCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.areaPopltnCount */
+		select val::numeric as Y, cd_nm as name
+		from data_catalog.${tableName} sph , base.code cd
+		where sph.gid = cd.cd_id
+	</select>
+	
+	<!-- 재난안전 -->
+	<!-- 일별 코로나 확진자 수 -->
+	<select id="dayCoronaCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.dayCoronaCount */
+		select sum(case_add) as Y, base_date as name
+		from mdl_data.seoul_covid_20220801 sc
+		where to_date(base_date, 'yyyy-mm-dd') between to_date(#{base_date}, 'yyyy-mm-dd')-30 and to_date(#{base_date}, 'yyyy-mm-dd')
+		<if test="nmAdm != '' and nmAdm != null">
+			and NM_ADM = #{nmAdm}
+		</if>
+		group by base_date
+		order by base_date
+	</select>
+	
+	<!-- 구별 코로나 확진자 수 -->
+	<select id="areaCoronaCount" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.areaCoronaCount */
+		select case_add as y, case_all as yy, nm_adm as name
+		from mdl_data.seoul_covid_20220801 sc 
+		where base_date = #{base_date}
+	</select>
+	
+	<!-- 테이블 조회 -->
+	<select id="selectDataTbl" resultType="string" parameterType="hashMap">
+		/* softGis.dashboard.DashboardDAO.selectDataTbl */
+		select data_tbl
+		from base.mta_data_tbl
+		where mta_cd = #{mta_cd}
+		and base_date like #{yyyy} || '%'
+		<if test="mta_cd == 'seoul_population'">
+			and right(data_tbl,2) = 'h2'
+		</if>
+		limit 1
+	</select>
+	
+	<!-- 서울 지도 -->
+	<select id="dashboardSeoulMap" resultType="string">
+		/* softGis.dashboard.DashboardDAO.dashboardSeoulMap */
+		SELECT JSONB_BUILD_OBJECT(
+			'type', 'FeatureCollection',
+			'features', JSONB_AGG(features.feature)
+		) FROM (
+			SELECT JSONB_BUILD_OBJECT(
+				'type', 'Feature',
+				'geometry', ST_AsGeoJSON(ST_SetSRID(ST_GeomFromText(geom)::geometry, 5181), 2)::jsonb,
+				'properties', TO_JSONB(inputs) - 'id' - 'geom'
+			) AS feature
+			FROM (
+				SELECT *
+				FROM data_catalog.seoul_sigungu_bnd_2022
+			) inputs
+		) features
+	</select>
+	
+	<!-- 분석결과 데이터 테이블 조회 -->
+	<select id="getTableName" parameterType="hashmap" resultType="string">
+		/* softGis.dashboard.DashboardDAO.getTableName */
+		select relname
+		from PG_STAT_ALL_TABLES
+		where SCHEMANAME = 'mdl_result'
+		and relname like #{table_name} || '%' || #{yyyy} || '%'
+		order by relname desc
+		limit 1
+	</select>
+	
+	<!-- 분석결과 조회 -->
+	<select id="getResultData" parameterType="hashmap" resultType="hashmap">
+		/* softGis.dashboard.DashboardDAO.getResultData */
+		select *
+		from mdl_result."${relname}"
+		limit 1
+	</select>
+	
+</mapper>
+
+
+

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.anal.AdminAnalDAO">
+	
+	<select id="getAnalList" resultType="hashmap">
+	 	/* softGis.admin.anal.AdminAnalDAO.getAnalList */
+		SELECT
+			a.anal_id
+			, a.anal_cd
+			, b.cd_nm AS anal_cd_nm
+			, a.anal_nm
+			, a.anal_desc
+			, a.use_stat
+			, TO_CHAR(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.anal_mngr a
+		LEFT OUTER JOIN base.code b ON a.anal_cd = b.cd_id AND b.grp_id = 'ANAL'
+		ORDER BY B.ord, a.anal_id;
+	</select>
+	
+	<insert id="insertAnal" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.insertAnal */
+		INSERT INTO base.anal_mngr (
+			anal_cd
+			, anal_nm
+			, anal_desc 
+			, use_stat
+			, reg_usr_id
+			, reg_dt
+		) VALUES (
+			#{anal_cd}
+			, #{anal_nm}
+			, #{anal_desc}
+			, #{use_stat}
+			, #{session_usr_id}
+			, now()
+		);
+	</insert>
+	
+	<update id="updateAnal" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.updateAnal */
+		UPDATE base.anal_mngr
+		SET
+			anal_cd = #{anal_cd}
+			, anal_nm = #{anal_nm}
+			, anal_desc = #{anal_desc}
+			, use_stat = #{use_stat}
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = now()
+		WHERE anal_id = #{anal_id}::integer;
+	</update>
+	
+	<delete id="deleteAnal">
+		/*softGis.admin.anal.AdminAnalDAO.deleteAnal */
+		DELETE FROM base.anal_mngr 
+		WHERE anal_id = #{anal_id}::integer;
+	</delete>
+	
+	<select id="getModelList" resultType="hashmap">
+	 	/* softGis.admin.anal.AdminAnalDAO.getModelList */
+		SELECT
+			d.cd_nm as anal_cate
+			, b.anal_nm AS anal_nm
+			, a.anal_id
+			, a.model_id
+			, a.model_nm
+			, a.model_desc
+			, TO_CHAR(a.reg_dt, 'YYYY-MM-DD HH:MI') as reg_dt
+			, a.file_id
+			, c.file_org_nm
+			, c.file_local_nm
+			, CASE WHEN ROUND(c.file_size/1024.0, 2) > 1024 THEN ROUNd(c.file_size/1024.0/1024, 2) || ' Mb'
+				   ELSE ROUND(c.file_size/1024.0, 2) || ' Kb' END AS file_size
+			, a.use_stat
+			, TO_CHAR(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.anal_model a
+		LEFT JOIN base.anal_mngr b ON a.anal_id = b.anal_id
+		LEFT JOIN base.att_file c ON a.file_id = c.file_id
+		LEFT JOIN base.code d ON b.anal_cd = d.cd_id AND d.grp_id = 'ANAL'
+		WHERE a.use_stat = 'Y'
+			AND d.use_stat = 'Y'
+		ORDER BY d.ord, a.anal_id, a.model_id;
+	</select>
+	
+	<select id="getModel" resultType="hashmap">
+	 	/* softGis.admin.anal.AdminAnalDAO.getModel */
+	 	SELECT
+	 		anal_id
+	 		, model_id
+	 		, file_id
+	 	FROM base.anal_model
+	 	WHERE model_id = #{model_id}::integer
+ 	</select>
+	
+	<insert id="insertModel" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.insertModel */
+		INSERT INTO base.anal_model (
+			anal_id
+			, model_nm
+			, model_desc
+			<if test='file_id != null'>, file_id</if>
+			, use_stat
+			, reg_usr_id
+			, reg_dt
+		) VALUES (
+			#{anal_id}::integer
+			, #{model_nm}
+			, #{model_desc}
+			<if test='file_id != null'>, #{file_id}</if>
+			, #{use_stat}
+			, #{session_usr_id}
+			, now()
+		)
+	</insert>
+	
+	<update id="updateModel" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.updateModel */
+		UPDATE base.anal_model
+		SET
+			anal_id = #{anal_id}::integer
+			, model_nm = #{model_nm}
+			, model_desc = #{model_desc}
+			<if test='file_id != null'>, file_id = #{file_id}</if>
+			, use_stat = #{use_stat}
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = now()
+		WHERE model_id = #{model_id}::integer
+	</update>
+	
+	<delete id="deleteModel">
+		/*softGis.admin.anal.AdminAnalDAO.deleteModel */
+		DELETE FROM base.anal_model 
+		WHERE model_id = #{model_id}::integer;
+	</delete>
+	
+	<update id="deleteModelAttachment">
+		/*softGis.admin.anal.AdminAnalDAO.deleteModelAttachment */
+		UPDATE base.anal_model
+		SET file_id = null
+		WHERE model_id = #{model_id}::integer;
+	</update>
+	
+	<select id="getAnalMetadatas" resultType="hashmap">
+	 	/* softGis.admin.anal.AdminAnalDAO.getAnalMetadatas */
+	 	SELECT
+			a.model_id
+			, a.mta_id
+			, a.mta_cd
+			, b.mta_nm
+			, a.pm_idx
+			, a.pm_date
+			, a.use_stat
+			, ARRAY_AGG(c.base_date ORDER BY c.base_date DESC) AS mta_dates
+		FROM base.anal_data_mngr a
+		LEFT JOIN base.mta_data b ON a.mta_id = b.mta_id AND a.mta_cd = b.mta_cd
+		LEFT JOIN base.mta_data_tbl c ON b.mta_id = c.mta_id AND b.mta_cd = c.mta_cd
+		WHERE a.model_id = #{model_id}::INTEGER
+		GROUP BY a.model_id, a.mta_id, a.mta_cd, b.mta_nm
+		ORDER BY a.pm_idx ASC;
+	</select>
+	
+	<select id="getAnalAvailableMetadatas" resultType="hashmap">
+	 	/* softGis.admin.anal.AdminAnalDAO.getAnalAvailableMetadatas */
+		SELECT
+			a.mta_id
+			, a.mta_cd
+			, a.mta_nm
+			, a.mta_desc
+			, a.mta_src
+			, a.mta_fcly
+			, a.mta_gther
+			, a.mta_url
+			, a.mta_tbl
+			, a.mta_cat
+			, c.cd_nm AS mta_fcly_nm
+			, d.cd_nm AS mta_cat_nm
+			, MAX(b.base_date) AS mta_upt_date
+			, a.use_stat
+		FROM base.mta_data a
+		LEFT JOIN base.mta_data_tbl b ON a.mta_id = b.mta_id
+		LEFT JOIN base.code c ON a.mta_fcly = c.cd_id
+		LEFT JOIN base.code d ON a.mta_cat = d.cd_id
+		WHERE 1 = 1
+		GROUP BY a.mta_id, a.mta_cd, c.cd_nm, d.cd_nm
+		ORDER BY a.mta_id ASC;
+	</select>
+	
+	<select id="checkAnalMetadataCollision" resultType="boolean">
+	 	/* softGis.admin.anal.AdminAnalDAO.checkAnalMetadataCollision */	 	
+		SELECT
+			(COUNT(*) > 0)
+		FROM base.anal_data_mngr
+		WHERE model_id = #{model_id}::INTEGER
+			AND mta_id = #{mta_id}::INTEGER;
+	</select>
+	
+	<insert id="insertAnalMetadata" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.insertAnalMetadata */
+		INSERT INTO base.anal_data_mngr (
+			model_id
+			, mta_id
+			, mta_cd
+			, pm_date
+			, use_stat
+			, pm_idx
+			, reg_usr_id
+			, reg_dt
+		) VALUES (
+			#{model_id}::INTEGER
+			, #{mta_id}::INTEGER
+			, #{mta_cd}
+			, #{mta_upt_date}
+			, #{use_stat}
+			, 1 + COALESCE((SELECT MAX(pm_idx) FROM base.anal_data_mngr GROUP BY model_id HAVING model_id = #{model_id}::INTEGER), 0)
+			, #{session_usr_id}
+			, now()
+		  );
+	</insert>
+	
+	<update id="updateAnalMetadata" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.updateAnalMetadata */
+		UPDATE base.anal_data_mngr
+		SET
+			pm_date = #{pm_date}
+			, use_stat = #{use_stat}
+		WHERE model_id = #{model_id}::INTEGER
+			AND mta_cd = #{mta_cd}
+	</update>
+	
+	<update id="updateAnalMetadataIndex" parameterType="hashmap">
+		/* softGis.admin.anal.AdminAnalDAO.updateAnalMetadataIndex */
+		WITH src AS (
+			SELECT
+				mta_id, pm_idx
+			FROM base.anal_data_mngr 
+			WHERE mta_id = #{mta_id}::INTEGER
+				AND model_id = #{model_id}::INTEGER
+		), dst AS (
+			SELECT
+				mta_id, pm_idx 
+			FROM base.anal_data_mngr 
+			WHERE pm_idx = #{pm_idx}::INTEGER
+				AND model_id = #{model_id}::INTEGER LIMIT 1
+		)
+		UPDATE base.anal_data_mngr a
+		SET
+			pm_idx = CASE WHEN a.mta_id = b.mta_id THEN #{pm_idx}::INTEGER ELSE b.pm_idx END
+		FROM src b
+		WHERE a.mta_id = b.mta_id OR a.mta_id = (SELECT mta_id FROM dst);
+	</update>
+	
+	<update id="deleteAnalMetadata">
+		/*softGis.admin.anal.AdminAnalDAO.deleteAnalMetadata */
+		DELETE FROM base.anal_data_mngr
+		WHERE model_id = #{model_id}::INTEGER
+		   AND mta_id = #{mta_id}::INTEGER
+	</update>
+	
+</mapper>

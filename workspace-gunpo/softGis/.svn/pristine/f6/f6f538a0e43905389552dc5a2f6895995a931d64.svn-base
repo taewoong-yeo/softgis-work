@@ -1,0 +1,11 @@
+.dbm {padding: 20px 10px;}
+.dbm .title {font-size: 1.2em; font-weight: 500; color: #2f3f85;}
+.dbm .sub-title {font-size: 1.5em; font-weight: bolder; padding: 20px 0; text-align: center; word-break: keep-all;}
+.dbm .panel-inner {padding: 10px; background: #fff; border: 1px solid #ddd; border-radius: 5px; overflow: hidden;}
+.dbm .logo {width: 120px; position: absolute; top: 1.4285714286rem; left: 1.4285714286rem;}
+.dbm .usr_info {display: flex;}
+.dbm .usr_info input {flex: 1;}
+.dbm .usr_info label {margin: 0 0 0 0.7142857143rem; line-height: 33px;}
+.dbm .usr_info label em {font-style: inherit;}
+.dbm .usr_info label span {margin-left: 7px;}
+.dbm .item_id_selection {text-align: center;}

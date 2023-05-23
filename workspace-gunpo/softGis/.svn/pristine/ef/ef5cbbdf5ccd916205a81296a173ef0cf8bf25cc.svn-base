@@ -1,0 +1,59 @@
+"use strict";
+
+// ES6 Polyfill
+import 'core-js/stable';
+import 'regenerator-runtime/runtime';
+
+// Global
+import './global';
+
+// Routes
+import CommonRoute from './routes/common-route';
+import MainRoute from './routes/main-route';
+import LoginRoute from './routes/login-route';
+import RegisterRoute from './routes/register-route';
+import AdminCodeRoute from './routes/admin-code-route';
+
+// Default Ajax Options
+$.ajaxSetup({
+	type: 'POST',
+	dataType: 'json',
+	cache: false,
+	error: e => {
+		if(e.responseJSON && e.responseJSON.error) {
+			alert(e.responseJSON.error);
+		} else {
+			alert('처리 중 오류가 발생하였습니다.\n관리자에게 문의바랍니다.');
+		}
+	}
+});
+	
+// Register Proj4 to Openlayers
+ol.proj.proj4.register(proj4);
+
+// Initialize
+$(document).ready(() => {
+	// Route Map
+	const routeMap = {
+		// Common
+		'*': CommonRoute
+		, 'main': MainRoute
+		, 'login': LoginRoute
+		, 'register': RegisterRoute
+		, 'admin_admin-code': AdminCodeRoute
+	};
+
+	// Remove no-js
+	document.body.classList.remove("no-js");
+	
+	// Start Routing
+	let pageId = document.body.id;
+	
+	let routeDissolve = Object.keys(routeMap).filter(v => {		
+		return new RegExp("^" + v.split("*").join(".*") + "$").test(pageId);
+	});
+	
+	for(let i in routeDissolve) {
+		routeMap[routeDissolve[i]]();
+	}
+});

@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.mycmmntyMap.MyCmmntyMapDAO">
+
+	<!-- My커뮤니티매핑 목록 -->
+	<select id="getMyCmmntyMapList" resultType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.getMyCmmntyMapList */
+		SELECT mapng_id
+				,mapng_title
+				,mapng_desc
+				,start_dt
+				,end_dt
+				,cat_cd
+				,(select cd_nm from base.code where grp_id='DATA_CATE' and cd_id=cat_cd) as cat_nm
+				,area_cd
+				,area_dtl_cd
+				,map_sel_cd
+				,answer_cd
+				,file_id
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+				,view_cnt
+				,temp_yn
+				,(select count(*) from base.cmmnty_mapng_answer b where a.mapng_id = b.mapng_id ) as answer_cnt
+				,case when end_dt <![CDATA[<]]> to_char(now(),'YYYY-MM-DD') and end_dt != '' then 'Y' else 'N' end as end_yn
+	    <include refid="incMyCmmntyMap" /> 
+		ORDER BY mapng_id DESC
+	 	LIMIT ${dataCountPerPage} OFFSET ${offsetCount} 
+	 	
+	</select>
+	
+	<!-- My커뮤니티매핑 목록수 -->
+	<select id="getMyCmmntyMapCount" parameterType="hashMap" resultType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.getMyCmmntyMapCount */
+		SELECT COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+	    <include refid="incMyCmmntyMap" /> 
+	</select>
+	
+	<sql id="incMyCmmntyMap">
+		FROM base.cmmnty_mapng a
+	  	WHERE use_stat ='Y' 
+		AND reg_usr_id = #{session_usr_id}
+		<if test="searchMapngTitle != '' and searchMapngTitle != null">
+			AND mapng_title like '%' || #{searchMapngTitle} || '%'
+		</if>
+		<if test="searchCatCd != '' and searchCatCd != null">
+			AND cat_cd = #{searchCatCd}
+		</if>
+    
+		<if test="arrStat != null"> AND
+		    <foreach item="curStat" collection="arrStat" open="(" separator="OR" close=")">
+				<if test='curStat.equals("T")'>
+					temp_yn = 'Y'
+				</if>
+				<if test='curStat.equals("I")'>
+				( temp_yn = 'N'
+					AND (end_dt <![CDATA[>=]]> to_char(now(),'yyyy-mm-dd')
+						OR end_dt IS NULL
+						OR end_dt = '' 
+					)
+				)
+				</if>
+				<if test='curStat.equals("C")'>
+				( temp_yn = 'N'
+					AND (end_dt <![CDATA[<]]> to_char(now(),'yyyy-mm-dd')
+						AND end_dt IS NOT NULL
+						AND end_dt != ''
+					)
+				)
+				</if>
+		    </foreach>
+		</if>
+	</sql>
+	
+	<!-- My커뮤니티매핑 상세 -->
+	<select id="getMyCmmntyMapDetail" resultType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.getMyCmmntyMapDetail */
+		SELECT mapng_id
+				,mapng_title
+				,mapng_desc
+				,start_dt
+				,end_dt
+				,cat_cd
+				,area_cd
+				,area_dtl_cd
+				,map_sel_cd
+				,answer_cd
+				,file_id
+				,use_stat
+				,reg_usr_id
+				,reg_dt
+				,view_cnt
+				, temp_yn
+				, map_sel_option
+				, area_cd as sd_cd
+				,(select count(*) from base.cmmnty_mapng_answer b where a.mapng_id = b.mapng_id ) as answer_cnt
+	     FROM base.cmmnty_mapng a
+	  	WHERE use_stat ='Y' 
+		  AND reg_usr_id = #{session_usr_id}
+		  AND mapng_id = #{mapng_id}::INTEGER
+	</select>
+	
+	<select id="getMyCmmntyMapQuesList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.getMyCmmntyMapQuesList */
+		SELECT q.ques_id
+			, q.mapng_id 
+			, q.ques_nm
+			, q.ques_desc
+			, q.ans_opt_cd
+			, o.opt_desc
+			, ROW_NUMBER() OVER(PARTITION BY q.ques_id ORDER BY o.opt_id) rnum
+		 FROM base.cmmnty_mapng_ques q
+		 LEFT OUTER JOIN base.ques_option o
+		   ON q.ques_id = o.ques_id
+	  	WHERE q.mapng_id = #{mapng_id}::INTEGER
+	  	  and q.use_stat ='Y' 
+		  AND q.reg_usr_id = #{session_usr_id}
+		ORDER BY q.ques_id, o.opt_id 
+	</select>
+	
+	<!-- My커뮤니티매핑 위치데이터 조회 -->
+	<select id="getMyCmmntyMapDataList" parameterType="hashmap" resultType="hashmap">
+		/* softGis.mycmmntyMap.MyCmmntyMapDAO.getMyCmmntyMapDataList */
+		SELECT mapng_id
+				, data_wms
+				, data_style
+				, data_nm
+		 FROM base.cmmnty_mapng_map_data
+	  	WHERE reg_usr_id = #{session_usr_id}
+		  AND mapng_id = #{mapng_id}::INTEGER
+	</select>
+	
+	<!-- My커뮤니티매핑 수정 -->
+	<update id="updateMyCmmntyMap" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.updateMyCmmntyMap */
+		UPDATE base.cmmnty_mapng
+		SET
+			<if test="mapng_title != '' and mapng_title != null">
+			 	mapng_title = #{mapng_title}
+			</if>
+			<if test="mapng_desc != '' and mapng_desc != null">
+				, mapng_desc = #{mapng_desc}
+			</if>
+				, start_dt = #{start_dt}
+				, end_dt = #{end_dt}
+			<if test="cat_cd != '' and cat_cd != null">
+				, cat_cd = #{cat_cd}
+			</if>
+			<if test="area_cd != '' and area_cd != null">
+				, area_cd = #{area_cd}
+			</if>
+			<if test="area_dtl_cd != '' and area_dtl_cd != null">
+				, area_dtl_cd = #{area_dtl_cd}
+			</if>
+			<if test="map_sel_cd != '' and map_sel_cd != null">
+				, map_sel_cd = #{map_sel_cd}
+			</if>
+			<if test="answer_cd != '' and answer_cd != null">
+				, answer_cd = #{answer_cd}
+			</if>
+			<if test="file_id != '' and file_id != null">
+				, file_id = #{file_id}
+			</if>
+			<if test="temp_yn != '' and temp_yn != null">
+				, temp_yn = #{temp_yn}
+			</if>
+			<if test="map_sel_option != '' and map_sel_option != null">
+				, map_sel_option = #{map_sel_option}
+			</if>
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE mapng_id = #{mapng_id}::INTEGER
+		  AND reg_usr_id = #{session_usr_id}
+	</update>
+	
+	<!-- My커뮤니티매핑 위치데이터 저장 -->
+	<insert id="insertMyCmmntyMapData" parameterType="hashmap">
+		/* softGis.mycmmntyMap.MyCmmntyMapDAO.insertMyCmmntyMapData */
+		INSERT INTO base.cmmnty_mapng_map_data
+			(
+			mapng_id
+			, data_wms
+			, data_style
+			, data_nm
+			, reg_usr_id
+			, reg_dt
+			)
+		VALUES (
+			#{mapng_id}::INTEGER
+			, #{data_wms}
+			, #{data_style}
+			, #{data_nm}
+			, #{session_usr_id}
+			, NOW()
+			)
+	</insert>
+	
+	<!-- My커뮤니티매핑 위치데이터 삭제 -->
+	<delete id="deleteMyCmmntyMapData" parameterType="hashmap">
+		/* softGis.mycmmntyMap.MyCmmntyMapDAO.deleteMyCmmntyMapData */
+		DELETE FROM base.cmmnty_mapng_map_data
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+		   AND reg_usr_id = #{session_usr_id}
+	</delete>
+	
+	<!-- My커뮤니티매핑 배경지도 질문 삭제 -->
+	<delete id="deleteMyCmmntyMapQues" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.deleteMyCmmntyMapQues */
+		DELETE FROM base.cmmnty_mapng_ques
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+		   AND reg_usr_id = #{session_usr_id}
+	</delete>
+	
+	<!-- My커뮤니티매핑 배경지도 질문옵션 삭제 -->
+	<delete id="deleteMyCmmntyMapQuesOption" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.deleteMyCmmntyMapQuesOption */
+		DELETE FROM base.ques_option
+		 WHERE ques_id in (SELECT ques_id FROM base.cmmnty_mapng_ques WHERE mapng_id = #{mapng_id}::INTEGER AND reg_usr_id = #{session_usr_id})
+	</delete>
+	
+	<!-- 커뮤니티매핑 답변 건수 -->
+	<select id="getAnswerOfMyCmmntyCount" parameterType="hashMap" resultType="int">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.getAnswerOfMyCmmntyCount */
+		SELECT COUNT(*) as CNT FROM base.cmmnty_mapng_answer
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+	</select>
+	
+	<!-- 커뮤니티매핑 삭제(상태변경) -->
+	<update id="updateStatMyCmmntyMap" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.updateStatMyCmmntyMap */
+		UPDATE base.cmmnty_mapng
+		   SET use_stat = 'N'
+			 , upt_usr_id = #{session_usr_id}
+			 , upt_dt = NOW()
+		 WHERE mapng_id = #{mapng_id}::INTEGER
+		   AND reg_usr_id = #{session_usr_id}
+	</update>
+	
+	<!-- 커뮤니티매핑 질문삭제(상태변경) -->
+	<update id="updateStatMyCmmntyMapQues" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.updateStatMyCmmntyMapQues */
+		UPDATE base.cmmnty_mapng_ques
+		   SET use_stat = 'N'
+		WHERE mapng_id = #{mapng_id}::INTEGER
+		  AND reg_usr_id = #{session_usr_id}
+	</update>
+	
+	<!-- 커뮤니티매핑 질문옵션삭제(상태변경) -->
+	<update id="updateStatMyCmmntyMapQuesOption" parameterType="hashmap">
+	 	/* softGis.mycmmntyMap.MyCmmntyMapDAO.updateStatMyCmmntyMapQuesOption */
+		UPDATE base.ques_option
+		   SET use_stat = 'N'
+		WHERE ques_id in (SELECT ques_id FROM base.cmmnty_mapng_ques WHERE mapng_id = #{mapng_id}::INTEGER AND reg_usr_id = #{session_usr_id}) 
+		  AND reg_usr_id = #{session_usr_id}
+	</update>
+</mapper>
+	

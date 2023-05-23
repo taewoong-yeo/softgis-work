@@ -1,0 +1,52 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<t:auth type="register">
+	<form action="<c:url value='/register.do' />" method="POST" class="form form-compact">
+		<h1 class="form-title">회원가입</h1>
+		<div class="form-field">
+			<label for="usr_nm" class="form-required">이름</label>
+			<input type="text" name="usr_nm" id="usr_nm" placeholder="이름">
+		</div>
+		
+		<div class="form-field">
+			<label for="usr_id" class="form-required">아이디</label>
+			<div class="form-box">
+				<input type="hidden" id="mail_chk" value=""/>
+				<input type="text" name="usr_id" id="usr_id" placeholder="이메일로 가입해주세요"><br>
+				<button type="button" id="mail_cert_btn" class="btn btn-primary">메일인증</button>
+			</div>
+		</div>
+	
+		<div class="form-field">
+			<label for="usr_pwd" class="form-required">비밀번호</label>
+			<input type="password" name="usr_pw" id="usr_pw" placeholder="비밀번호 (영문, 숫자, 특수문자 조합 9~20자)">
+			<input type="password" name="usr_pw_confirm" placeholder="비밀번호 확인">
+		</div>
+				
+		<div class="form-field">
+			<label for="usr_phone" class="">휴대전화번호</label>
+			<input type="text" name="usr_mobile" id="usr_mobile" placeholder="010-0000-0000 형식으로 입력 해주세요">
+		</div>
+		
+		<div class="form-field emp-only">
+			<label for="usr_dpt" class="">부서명</label>
+			<input type="text" name="usr_dept" id="usr_dept" placeholder="부서명">
+		</div>
+				
+		<div class="form-field emp-only">
+			<label for="usr_phone" class="">내선번호</label>
+			<input type="text" name="usr_tel" id="usr_tel" placeholder="내선번호">
+		</div>
+		
+
+		
+		<br><br>
+		
+		<button class="form-submit">회원 가입</button>
+		<ul class="form-link">
+			
+			<li><span class="u-text-primary">*</span> 항목은 필수 입력 사항입니다.<a href="<c:url value='/login.do' />">뒤로 가기</a></li>
+		</ul>
+	</form>
+</t:auth>

@@ -1,0 +1,70 @@
+$responsive-column-count: 12;
+
+$responsive-laptop-large: 1440px;
+$responsive-laptop-middle: 1280px;
+$responsive-laptop: 1024px;
+$responsive-tablet: 768px;
+$responsive-mobile: 480px;
+$responsive-mini: 320px;
+
+$responsive-map: (
+	'll': $responsive-laptop-large,
+	'lm': $responsive-laptop-middle,
+	'l': $responsive-laptop,
+	't': $responsive-tablet,
+	'm': $responsive-mobile,
+	'x': $responsive-mini,
+);
+
+@mixin breakpoint($width) {
+	@media (max-width: $width) {
+		@content;
+	}
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+
+	&-hspace {
+		@for $i from 0 through $responsive-column-count {
+			&-#{$i} {
+				margin: 0 space(-$i);
+
+				& > [class*='col'] {
+					padding: 0 space($i);
+				}
+			}
+
+			@each $name, $px in $responsive-map {
+				@include breakpoint($px) {
+					&-#{$name}-#{$i} {
+						margin: 0 space(-$i);
+						
+						& > [class*='col'] {
+							padding: 0 space($i);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	.col {
+		@for $i from 1 through $responsive-column-count {
+			&-#{$i} {
+				flex-basis: calc(100% / calc($responsive-column-count / $i));
+				max-width: calc(100% / calc($responsive-column-count / $i));
+			}
+
+			@each $name, $px in $responsive-map {
+				@include breakpoint($px) {
+					&-#{$name}-#{$i} {
+						flex-basis: calc(100% / calc($responsive-column-count / $i));
+						max-width: calc(100% / calc($responsive-column-count / $i));
+					}
+				}
+			}
+		}
+	}
+}

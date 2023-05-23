@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.user.AdminUserDAO">
+	
+	<!-- 회원 목록 -->
+	<select id="getUserList" parameterType="hashmap" resultType="hashmap">
+	 	/* softGis.admin.user.AdminUserDAO.getUserList */
+	 	SELECT usr_id as usrId
+				, usr_pw
+				, usr_nm
+				, usr_dept
+				, usr_mobile
+				, usr_tel
+				, usr_auth
+				, usr_login_type
+				, TO_CHAR(reg_dt, 'YYYY-MM-DD') AS reg_dt
+   		FROM base.usr
+   		WHERE use_stat = 'Y'
+   		<if test="sch_usr_id != '' and sch_usr_id != null">
+			AND usr_id LIKE '%' || #{sch_usr_id} || '%'
+   		</if>
+   		<if test="sch_usr_nm != '' and sch_usr_nm != null">
+			AND usr_nm LIKE '%' || #{sch_usr_nm} || '%'
+   		</if>
+		ORDER BY reg_dt desc
+	</select>
+	
+	<!-- 회원 정보 조회 -->
+	<select id="getUserDetail" parameterType="hashmap" resultType="hashmap">
+		/* softGis.admin.user.AdminUserDAO.getUserDetail */
+	 	SELECT usr_id
+				, usr_pw
+				, usr_nm
+				, usr_dept
+				, usr_mobile
+				, usr_tel
+				, usr_auth
+				, usr_login_type
+   		FROM base.usr
+   		WHERE usr_id = #{usr_id}
+	</select> 
+	
+	<!-- 회원 등록 -->
+	<insert id="insertUser" parameterType="hashmap">
+		INSERT INTO base.usr
+			(usr_id
+			, usr_pw
+			, usr_nm
+			, usr_dept
+			, usr_mobile
+			, usr_tel
+			, usr_auth
+			, usr_login_type
+			, use_stat
+			, reg_usr_id
+			, reg_dt)
+		VALUES
+			(#{usr_id}
+			, #{usr_pw}
+			, #{usr_nm}
+			, #{usr_dept}
+			, #{usr_mobile}
+			, #{usr_tel}
+			, #{usr_auth}
+			, #{usr_login_type}
+			, 'Y'
+			, #{reg_usr_id}
+			, NOW())
+	</insert>	
+	
+	<!-- 회원 수정 -->
+	<update id="updateUser" parameterType="hashmap">
+		UPDATE base.usr
+		SET
+			<if test="usr_pw != '' and usr_pw != null">
+			 	usr_pw = #{usr_pw},
+			</if>
+			<if test="usr_nm != '' and usr_nm != null">
+				usr_nm = #{usr_nm},
+			</if>
+			<if test="usr_dept != '' and usr_dept != null">
+				usr_dept = #{usr_dept},
+			</if>
+			<if test="usr_mobile != '' and usr_mobile != null">
+				usr_mobile = #{usr_mobile},
+			</if>
+			<if test="usr_tel != '' and usr_tel != null">
+				usr_tel = #{usr_tel},
+			</if>
+			<if test="usr_auth != '' and usr_auth != null">
+				usr_auth = #{usr_auth},
+			</if>
+			<if test="usr_login_type != '' and usr_login_type != null">
+				usr_login_type = #{usr_login_type},
+			</if>
+		upt_usr_id = #{upt_usr_id},
+		upt_dt = NOW()
+		WHERE usr_id = #{usr_id}
+	</update>	
+	
+	<!-- 회원 삭제 -->
+	<delete id="deleteUser" parameterType="hashmap">
+		UPDATE base.usr
+		SET  use_stat = 'N'
+			, upt_usr_id = #{upt_usr_id}
+			, upt_dt = NOW())
+		WHERE usr_id = #{usr_id}
+	</delete>	
+	
+	
+</mapper>

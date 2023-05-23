@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.auth.AuthDAO">
+	
+	<select id="getUser" resultType="softGis.auth.UserVO">
+	 	/* softGis.auth.AuthDAO.getUser */
+		SELECT usr_id
+				, usr_pw
+				, usr_nm
+				, usr_dept
+				, usr_mobile
+				, usr_tel
+				, usr_auth
+				, usr_login_type
+   		  FROM base.usr
+		 WHERE usr_id = #{usr_id}
+		 <if test="usr_pw != null and usr_pw != ''">
+		   AND usr_pw = #{usr_pw}
+		 </if>
+		   AND use_stat = 'Y'
+	</select>
+
+	<insert id="insertUser" parameterType="hashmap">
+	 	/* softGis.auth.AuthDAO.insertUser */
+		INSERT
+		  INTO base.usr (
+			   usr_id
+			   , usr_pw
+			   , usr_nm
+			   , usr_auth
+			   , usr_login_type
+			   , use_stat
+			   , agree_yn
+			   , reg_usr_id
+			   , reg_dt
+		  ) VALUES (
+			   #{usr_id}
+			   , #{usr_pw}
+			   , #{usr_nm}
+			   , #{usr_auth}
+			   , #{usr_login_type}
+			   , 'Y'
+			   , #{agree_yn}
+			   , #{usr_id}
+			   , NOW()
+		  )
+	</insert>
+	
+	<select id="registerCollisionCheck" resultType="softGis.auth.UserVO">
+	 	/* softGis.auth.AuthDAO.registerCollisionCheck */
+		SELECT usr_id
+   		FROM base.usr
+		WHERE usr_id = #{mail}
+	</select>
+	
+	<delete id="deleteUser" parameterType="hashMap">
+		/* softGis.auth.AuthDAO.deleteUser */
+		UPDATE base.usr
+		SET usr_id = #{leaveId}
+			, usr_nm = '탈퇴회원'
+			, usr_mobile = null
+			, usr_tel = null
+			, usr_auth = null
+			, usr_login_type = null
+			, usr_email = null
+			, use_stat = 'N'
+			, reg_usr_id = #{leaveId}
+			, upt_usr_id = #{leaveId}
+			, upt_dt = now()
+		WHERE usr_id = #{session_usr_id}
+	</delete>
+</mapper>

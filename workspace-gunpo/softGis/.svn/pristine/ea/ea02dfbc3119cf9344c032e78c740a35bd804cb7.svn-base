@@ -1,0 +1,64 @@
+import Loading from '../modules/loading';
+
+function MainRoute() {
+
+    
+	const $popup = $('.main-popup').detach();
+	const popups = [];
+	
+	$popup.find('img').each((i, el) => {
+		const $img = $(el);
+
+		const title = $img.attr('title');
+		const notiNo = $img.data('noti');
+
+		const cookieName = 'NOTI_' + notiNo;
+		const cookie = cookie.getCookie(cookieName);
+		
+		if(cookie === undefined) {
+			try {
+				const _window = window.open('', '', `width=${el.width}, height=${el.height+40}, left=${i*50+100}, top=${i*50+100}, resizable=no`);
+
+				_window.document.title = title;
+				
+				const $document = $(_window.document);
+				const $body = $document.find('body');
+				
+				$body.html(el.outerHTML)
+				$body.css({ overflow: 'hidden', margin: '0' })
+				$body.append(`
+					<div style='background: #1a3777; color: #fff; padding: 10px;'>
+						<label><input type="checkbox" name="close" value="OK" /> 일주일간 보지 않기</label>
+						<button style='float: right; padding: 0 15px;'>닫기</button>
+					</div>
+				`);
+
+				$body.on('click', 'button', e => {
+					e.preventDefault();
+
+					const $checkbox = $body.find('input[type="checkbox"]');
+
+					if($checkbox.is(':checked')) {
+						cookie.setCookie(cookieName, '', 7);
+					}
+
+					_window.close();
+				});
+				
+				popups.push(_window);
+			} catch(e) { }
+		}
+	});
+
+    
+
+	
+
+	$(window).on('beforeunload', e => {
+		for(const popup of popups) {
+			popup.close();
+		}
+	});
+}
+
+export default MainRoute;

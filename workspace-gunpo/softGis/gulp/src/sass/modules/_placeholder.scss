@@ -1,0 +1,62 @@
+%icon-fa {
+	-moz-osx-font-smoothing: antialiased;
+	-webkit-font-smoothing: antialiased;
+	display: inline-block;
+	font-style: normal;
+	font-variant: normal;
+	text-rendering: auto;
+	line-height: 1;
+}
+
+%icon-fas {
+	@extend %icon-fa;
+
+	font-family: 'Font Awesome 5 Free';
+	font-weight: 900;
+}
+
+%icon-far {
+	@extend %icon-fa;
+	
+	font-family: 'Font Awesome 5 Free';
+	font-weight: 400;
+}
+
+%icon-fab {
+	@extend %icon-fa;
+
+	font-family: "Font Awesome 5 Brands";
+}
+
+%icon-bx {
+	font-family: 'boxicons' !important;
+	font-weight: normal;
+	font-style: normal;
+	font-variant: normal;
+	line-height: 1;
+	display: inline-block;
+	text-transform: none;
+	speak: none;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+%image {
+	background-repeat: no-repeat;
+	background-position: center center;
+}
+
+%image-fluid {
+	@extend %image;
+
+	background-size: contain;
+}
+
+%paragraph {
+	line-height: $default-paragraph-line-height;
+}
+
+%pre {
+	white-space: pre-wrap;
+	line-height: $default-paragraph-line-height;
+}

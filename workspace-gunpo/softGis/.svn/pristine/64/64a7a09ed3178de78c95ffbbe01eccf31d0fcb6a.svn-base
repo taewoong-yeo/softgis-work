@@ -1,0 +1,110 @@
+import { Validator, VALIDATOR_PW_REGEX_RULE, VALIDATOR_PHONE_REGEX_RULE } from '../shared/validator';
+import Aside from '../modules/aside';
+import Nav from '../modules/nav';
+
+const HTML = {
+	NAV_AUTH_DIALOG: `
+		<div class="auth-dialog">
+			<form action="${Constant.CONTEXT_PATH}/modifyUser.do" method="POST" class="form u-padding-4">
+				<div class="form-field">
+					<label for="auth_usr_nm" class="form-required">이름</label>
+					<input type="text" id="auth_usr_nm" name="usr_nm" placeholder="이름" value="" readonly>
+					<span class="u-display-block u-margin-top-1 u-text-primary">※ 이름 수정은 관리자에게 문의해주세요.</span>
+				</div>
+				<div class="form-field">
+					<label for="auth_usr_pwd">비밀번호</label>
+					<input type="password" id="auth_usr_pwd" name="usr_pwd" placeholder="비밀번호 (영문, 숫자, 특수문자 조합 9~20자)">
+					<input type="password" id="auth_usr_pwd_confirm" name="usr_pwd_confirm" placeholder="비밀번호 확인">
+					<span class="u-display-block u-margin-top-1 u-text-primary">※ 비밀번호는 수정할 때에만 입력해 주십시오.</span>
+				</div>
+				<div class="form-field">
+					<label for="auth_usr_dpt" class="form-required">부서명</label>
+					<input type="text" id="auth_usr_dpt" name="usr_dpt" placeholder="부서명" value="" readonly>
+					<span class="u-display-block u-margin-top-1 u-text-primary">※ 부서명 수정은 관리자에게 문의해주세요.</span>
+				</div>
+				<div class="form-field">
+					<label for="auth_usr_phone">내선번호</label>
+					<input type="text" id="auth_usr_phone" name="usr_phone" placeholder="내선번호" value="">
+				</div>
+			</form>
+		</div>
+	`
+};
+
+function CommonRoute() {
+	// Initalize UI Components
+	Aside.init();
+	Nav.init();
+
+	// Navigator Auth Dialog
+	const $navAuth = $('.my-info');
+
+	if($navAuth.length > 0) {
+		const $navAuthDialog = $(HTML.NAV_AUTH_DIALOG).appendTo('body');
+		const $navAuthForm = $navAuthDialog.find('form');
+
+		const validator = new Validator({
+			usr_pwd: { maxLength: 20, regexNotEmpty: VALIDATOR_PW_REGEX_RULE, confirm: 'usr_pwd_confirm' },
+			usr_nm: { required: true, maxLength: 50 },
+			usr_dpt: { required: true, maxLength: 50 },
+			usr_phone: { maxLength: 20, regexNotEmpty: VALIDATOR_PHONE_REGEX_RULE }
+		}, {
+			fieldNames: {
+				usr_pwd: '비밀번호',
+				usr_nm: '이름',
+				usr_dpt: '부서명',
+				usr_phone: '내선번호'
+			}
+		});
+
+		$navAuthDialog.kendoDialog($.extend({}, Constant.KENDO_DEFAULT_DIALOG_OPTION, {
+			title: '사용자 정보 수정',
+			actions: [
+				{ text: '닫기', primary: false },
+				{ text: '수정', primary: true, action: () => { $navAuthForm.submit(); return false; } }
+			]
+		}));
+
+		$navAuth.on('click', async (e) => {
+			e.preventDefault();
+
+			const result = await $.post(Constant.CONTEXT_PATH + '/getUser.do');
+
+			$navAuthForm.reset();
+
+			for(const i in result) {
+				$navAuthDialog.find(`input[name="${i}"]`).val(result[i]);
+			}
+
+			$navAuthDialog.data('kendoDialog').open();
+		});
+
+		$navAuthForm.on('submit', (e) => {
+			const formData = $navAuthForm.serializeFlat();
+
+			if(!validator.validateAll(formData))
+				return false;
+		});
+	}
+	
+	// Navigator log out
+	const $logOut = $('.nav-log-out');
+	
+
+	// Kendo Resizing
+	let timer;
+
+	$(window).on('resize', _ => {
+		clearTimeout(timer);
+
+		timer = setTimeout(() => {
+			$('.k-chart').each((i, el) => {
+				$(el).data('kendoChart').redraw()
+			});
+			
+			$(window).trigger('resizeEnd');
+		}, 100);
+	});
+}
+
+export default CommonRoute;

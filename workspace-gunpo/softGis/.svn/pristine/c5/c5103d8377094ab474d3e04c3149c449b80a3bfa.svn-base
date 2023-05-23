@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.main.MainDAO">
+
+	<select id="getNoticeList" resultType="hashmap">
+		/* softGis.main.MainDAO.getTestResultList */
+		select *
+			  FROM (SELECT 
+			  noti_id,
+			  noti_type,
+			  noti_title, 
+			  noti_content,
+			  to_char(reg_dt, 'YYYY-MM-DD') as reg_dt
+				  FROM base.noti_mngr
+				  WHERE noti_type NOT IN('POP')) a
+		  WHERE noti_type = 'FIX'
+		  	  <choose>
+		  	<when test="searchOption == 'title'">
+		    OR noti_title LIKE '%${search_keyword}%'
+		  	</when>
+		  	<when test="searchOption == 'content'">
+		    OR noti_content LIKE '%${search_keyword}%'
+		  	</when>
+		  	<otherwise>
+		    OR noti_title LIKE '%${search_keyword}%'
+   		    OR noti_content LIKE '%${search_keyword}%'
+		  	</otherwise>
+		  </choose>
+	  ORDER BY noti_id ASC
+	</select>
+
+	<select id="getNoticeDetail" resultType="hashmap">
+		/* softGis.main.MainDAO.getNoticeDetail */
+		SELECT noti_id,noti_title, to_char(reg_dt, 'YYYY-MM-DD') as reg_dt,noti_content
+		 	FROM base.noti_mngr a    
+		WHERE noti_id = #{noti_id}::integer
+	</select>
+	
+	<select id="getNoticeListPop" resultType="hashmap">
+		/* softGis.main.MainDAO.getNoticeDetail */
+		SELECT * FROM base.noti_mngr
+		where use_stat = 'Y' and noti_type IN ('POP') order by start_dt desc limit 5 
+	</select>
+		 	 
+		 
+		 
+</mapper>

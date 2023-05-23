@@ -1,0 +1,66 @@
+package softGis.main;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Service;
+
+import egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl;
+
+@Service("mainService")
+public class MainService extends EgovAbstractServiceImpl {
+	
+	@Resource(name="mainDAO")
+	public MainDAO mainDAO;
+
+	public List<Object> getDataCatlog() {
+		return mainDAO.getDataCatlog();
+	}
+	
+	public List<Object> getDashboard() {
+		return mainDAO.getDashboard();
+	}
+	
+	public Object getAdmDong(Map<String, Object> paramMap) {
+		return mainDAO.getAdmDong(paramMap);
+	}
+	
+	public Object getEmdDong(Map<String, Object> paramMap) {
+		return mainDAO.getEmdDong(paramMap);
+	}
+
+	public List<Object> getMainNoticeList(Map<String, Object> paramMap) {
+		return mainDAO.getMainNoticeList(paramMap);
+	}
+	
+	public List<Object> getNoticeList(Map<String, Object> paramMap) {
+		return mainDAO.getNoticeList(paramMap);
+	}
+	
+	public Map<String, Object> getNoticeDetail(Map<String, Object> paramMap) {
+		return mainDAO.getNoticeDetail(paramMap);
+	}
+	
+	public List<Object> getNoticeListPop(Map<String, Object> paramMap) {
+		return mainDAO.getNoticeListPop(paramMap);
+	}
+	
+	public List<Object> getMainAnalResultList(Map<String, Object> paramMap) {
+		return mainDAO.getAnalResultList(paramMap);
+	}
+	
+	public List<Object> getAnalResultList(Map<String, Object> paramMap) {
+		return mainDAO.getAnalResultList(paramMap);
+	}
+	
+	public Map<String, Object> getAnalResultDetail(Map<String, Object> paramMap) {
+		return mainDAO.getAnalResultDetail(paramMap);
+	}
+
+	public List<Object> getMainSearchResult(Map<String, Object> paramMap) {
+		return mainDAO.getMainSearchResult(paramMap);
+	}
+
+}

@@ -1,0 +1,103 @@
+<%@ tag language="java" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
+<%@ attribute name="extra_head" fragment="true" required="false" %>
+<%@ attribute name="extra_body" fragment="true" required="false" %>
+<t:app extra_head="${extra_head}" extra_body="${extra_body}">
+	<jsp:attribute name="navigation">
+		<div class="nav">
+			<a href="<c:url value='${not empty __PATH__ and __PATH__.size() > 1 ? __PATH__.get(__PATH__.size() - 2).get("url") : "/"}' />" class="nav-back">
+				<i class='bx bx-arrow-back'></i>상위 페이지
+			</a>
+			<div class="nav-path">
+				<div class="nav-path-element">
+					<c:choose>
+						<c:when test="${__ADMINPAGE__ eq false}">
+						<a href="<c:url value='/' />"><i class='bx bxs-home'></i>데이터 통합관리</a>
+						</c:when>
+						<c:otherwise>
+						<a href="<c:url value='/admin/log.do' />"><i class='bx bxs-home'></i> 관리도구</a>
+						</c:otherwise>
+					</c:choose>
+				</div>
+				
+				<c:forEach var="path" varStatus="status" items="${__PATH__}">
+					<div class="nav-path-element">
+						<c:choose>
+							<c:when test="${status.last and path.url_maint eq 'N'}">
+								<c:set var="servletPath" value="${requestScope['javax.servlet.forward.servlet_path']}" />
+								<c:set var="queryString" value="${requestScope['javax.servlet.forward.query_string']}" />
+								<a href="<c:url value='${servletPath}?${queryString}' />">${path.url_lbl}</a>
+							</c:when>
+							<c:otherwise>
+								<a href="<c:url value='${path.url}' />">${path.url_lbl}</a>
+							</c:otherwise>
+						</c:choose>
+					</div>
+				</c:forEach>
+			</div>
+			<div class="nav-auth">
+				<a href="#" class="my-info">
+					<i class='bx bxs-user-circle'></i>
+					<strong>${__USER__.getUsr_nm()}</strong>
+					<small>(${__USER__.getUsr_dept()})</small>
+				</a>
+				<a href="/logout.do" class="log-out">
+					<i class='bx bxs-log-out'></i>
+					<small>로그아웃</small>
+				</a>
+			</div>
+		</div>
+		<c:if test="${__ADMINPAGE__}">
+			<div class="aside">
+				<div class="aside-nav">
+					<ul>
+						<li>
+							<a href="#"><i class='bx bx-box'></i>데이터셋 관리</a>
+							<ul>
+								<li><a href="<c:url value='/admin/dataMeta.do' />"><i class='bx bx-file-blank'></i>메타데이터<br>관리</a></li>
+								<li><a href="<c:url value='/admin/dataLoad.do' />"><i class='bx bxs-file-import'></i>데이터 관리</a></li>
+								<li><a href="<c:url value='/admin/dataVisualize.do' />"><i class='bx bxs-report'></i>시각화 관리</a></li>
+							</ul>
+						</li>
+						<li>
+							<a href="#"><i class='bx bx-landscape'></i>분석활용 관리</a>
+							<ul>
+								<li><a href="<c:url value='/admin/anal.do' />"><i class='bx bx-shape-polygon'></i>분석 관리</a></li>
+								<li><a href="<c:url value='/admin/analStatMeta.do' />"><i class='bx bx-shape-square'></i>분석통계<br>관리</a></li>
+								<li><a href="<c:url value='/admin/analStatLoad.do' />"><i class='bx bx-shape-triangle'></i>분석통계<br>데이터 관리</a></li>
+								<li><a href="<c:url value='/admin/analStatVisualize.do' />"><i class='bx bx-bar-chart-square'></i>분석통계<br>시각화 관리</a></li>
+								<li><a href="<c:url value='/admin/analResultMeta.do' />"><i class='bx bx-shape-square'></i>분석결과<br>관리</a></li>
+								<li><a href="<c:url value='/admin/analResultLoad.do' />"><i class='bx bx-shape-triangle'></i>분석결과<br>데이터 관리</a></li>
+								<li><a href="<c:url value='/admin/analResultVisualize.do' />"><i class='bx bx-bar-chart-square'></i>분석결과<br>시각화 관리</a></li>
+							</ul>
+						</li>
+						<li> 
+							<a href="#"><i class='bx bx-book-content'></i>대시보드 관리</a> 
+ 							<ul> 
+ 								<li><a href="<c:url value='/admin/dashboard/indicatorsLoad.do' />"><i class='bx bx-file-blank'></i>메타데이터 관리</a></li>
+ 								<li><a href="<c:url value='/admin/dashboard/indicators.do' />"><i class='bx bx-book-content'></i>지표 관리</a></li> 
+ 								<li><a href="<c:url value='/admin/dashboard/vis.do' />"><i class='bx bx-bar-chart-square'></i>시각화 관리</a></li> 
+ 								<li><a href="<c:url value='/admin/dashboard/menu.do' />"><i class='bx bxs-file-import'></i>메뉴 관리</a></li> 
+ 							</ul> 
+ 						</li>
+						<c:if test='${__PERMISSION__.equals("SMGR")}'>
+							<li>
+								<a href="#"><i class='bx bx-cog'></i>시스템 관리</a>
+								<ul>
+									<li><a href="<c:url value='/admin/user.do' />"><i class='bx bx-user'></i>사용자 관리</a></li>
+									<li><a href="<c:url value='/admin/groupCode.do' />"><i class='bx bx-folder-open'></i>그룹코드 관리</a></li>
+									<li><a href="<c:url value='/admin/commonCode.do' />"><i class='bx bx-qr'></i>코드 관리</a></li>
+									<li><a href="<c:url value='/admin/log.do' />"><i class='bx bxs-doughnut-chart'></i>로그 분석</a></li>
+								</ul>
+							</li>
+						</c:if>
+					</ul>
+				</div>
+			</div>
+		</c:if>
+	</jsp:attribute>
+	<jsp:body>
+		<jsp:doBody />
+	</jsp:body>
+</t:app>

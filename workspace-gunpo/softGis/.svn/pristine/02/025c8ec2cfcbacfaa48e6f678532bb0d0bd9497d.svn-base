@@ -1,0 +1,66 @@
+package softGis.admin.user;
+
+import java.util.List;
+import java.util.Map;
+
+import javax.annotation.Resource;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@Controller
+@RequestMapping(value="/admin", method=RequestMethod.POST)
+public class AdminUserController {
+	
+	@Resource(name="adminUserService")
+	private AdminUserService service;
+	
+	@RequestMapping(value="/getUserList.do")
+	public String getUserList(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		List<Object> result = service.getUserList(paramMap);
+		
+		model.addAttribute("result", result);
+		
+		return "jsonString";
+	}
+	
+	@RequestMapping(value="/getUserDetail.do")
+	public String getUserDetail(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		Object result = service.getUserDetail(paramMap);
+		
+		model.addAttribute("result", result);
+		
+		return "jsonString";
+	}
+	
+	@RequestMapping(value="/insertUser.do")
+	public String insertUser(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		int result = service.insertUser(paramMap);
+		
+		model.addAttribute("result", result);
+		
+		return "jsonString";
+	}
+	
+	@RequestMapping(value="/updateUser.do")
+	public String modifyUser(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		int result = service.updateUser(paramMap);
+		
+		model.addAttribute("result", result);
+		
+		return "jsonString";
+	}
+	
+	@RequestMapping(value="/deleteUser.do")
+	public String modifyDelete(@RequestParam Map<String, Object> paramMap, ModelMap model) {
+		int result = service.deleteUser(paramMap);
+		
+		model.addAttribute("result", result);
+		
+		return "jsonString";
+	}
+	
+}

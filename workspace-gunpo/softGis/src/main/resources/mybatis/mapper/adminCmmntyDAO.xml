@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.cmmnty.AdminCmmntyDAO">
+
+	<select id="getCmmnty" resultType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.getCmmnty */
+		SELECT cm.mapng_id,
+			 c.cd_nm,
+			 cm.cat_cd,
+			 cm.mapng_title,
+			 cm.start_dt,
+			 cm.end_dt,
+			 cm.use_stat,
+			 mapng_use_stat ,
+			 cm.area_cd ,
+			 area_dtl_cd,
+			 (select count(*) from base.cmmnty_mapng_answer cma where cma.mapng_id = cm.mapng_id) as answer_cnt
+		FROM base.cmmnty_mapng cm  INNER JOIN base.code c ON cm.cat_cd = c.cd_id 
+ 		order by cm.reg_dt
+	</select>
+	
+	<update id="updateCmmnty" parameterType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.updateCmmnty */
+		UPDATE 
+			base.cmmnty_mapng
+		SET 
+			  use_stat = #{use_stat}
+			, mapng_use_stat = #{mapng_use_stat}
+		WHERE mapng_id = #{mapng_id}::integer;
+	</update>
+	
+	<select id="getCmmntyReport" resultType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.getCmmntyReport */
+		select 
+			c.mapng_id,
+			c.cd_nm,
+			c.cat_cd,
+			c.mapng_title,
+		 	c.start_dt,
+		 	c.end_dt,
+		 	c.use_stat,
+		 	c.mapng_use_stat ,
+		 	c.area_cd ,
+		 	c.area_dtl_cd,
+		 	c.report_cnt ,
+		 	c.report_cont
+		from (
+			select 
+				cm.mapng_id,
+				 c.cd_nm,
+				 cm.cat_cd,
+				 cm.mapng_title,
+				 cm.start_dt,
+				 cm.end_dt,
+				 cm.use_stat,
+				 mapng_use_stat ,
+				 cm.area_cd ,
+				 area_dtl_cd,
+				 cm.report_cont,
+				(select count(b.mapng_id) from base.cmmnty_mapng_answer_report b where b.mapng_id =cm.mapng_id and b.report_status='Y' ) as report_cnt
+			from base.cmmnty_mapng cm INNER JOIN base.code c ON cm.cat_cd = c.cd_id 
+			where cm.report_yn ='N'
+			and c.use_stat ='Y'
+			order by cm.reg_dt
+		)c
+		where c.report_cnt>=1
+	</select>
+	
+	<select id="getCmmntyAnswerReport" resultType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.getCmmntyAnswerReport */ 
+		
+		select
+			a.mapng_id,
+			a.answer_id,
+			case when a.report_cd ='99' then a.report_cont
+				else c.cd_nm 
+			end report_cont,
+			a.reg_usr_id,
+			to_char(a.reg_dt, 'YYYY.MM.DD') as reg_dt 
+		from base.cmmnty_mapng_answer_report a INNER JOIN base.code c ON c.cd_id = a.report_cd
+		where a.mapng_id = #{mapng_id}::integer
+		and c.grp_id ='REPORT_TYPE'
+		order by a.answer_id, a.reg_dt
+		
+	</select>
+	
+	<update id="updateCmmntyReport" parameterType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.updateCmmntyReport */
+		UPDATE 
+			base.cmmnty_mapng
+		SET 
+			  report_yn = 'Y'
+			, report_cont = #{report_cont}
+			WHERE mapng_id = #{mapng_id}::integer;
+	</update>
+	
+	<select id="getCmmntyMapngAnswer" resultType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.getCmmntyMapngAnswer */
+		select 
+			c.answer_id,
+			c.mapng_id,
+			c.answer_title,
+			c.report_cnt
+		from ( 
+			select 
+				a.answer_id ,
+				a.mapng_id ,
+				a.answer_title , 
+				(select count(b.mapng_id) from base.cmmnty_mapng_answer_report b where b.answer_id =a.answer_id and b.report_status='N' ) as report_cnt
+			from base.cmmnty_mapng_answer a 
+			order by a.reg_dt
+		) c
+		where c.report_cnt>=1 
+	</select>
+	
+	
+	
+	<select id="getCmmntyMapngAnswerReport" resultType="hashmap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.getCmmntyMapngAnswerReport */ 
+		
+		select
+			a.mapng_id,
+			a.answer_id,
+			case when a.report_cd ='99' then a.report_cont
+				else c.cd_nm 
+			end report_cont,
+			a.reg_usr_id,
+			to_char(a.reg_dt, 'YYYY.MM.DD') as reg_dt 
+		from base.cmmnty_mapng_answer_report a INNER JOIN base.code c ON c.cd_id = a.report_cd
+		where a.answer_id = #{answer_id}::integer
+		and c.grp_id ='REPORT_TYPE'
+		order by a.answer_id, a.reg_dt
+		
+	</select>
+	
+	<delete id="deleteCmmntyMapngAnswer" parameterType="hashMap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.deleteCmmntyMapngAnswer */ 
+		DELETE 
+		  FROM base.cmmnty_mapng_answer 
+		 WHERE answer_id = #{answer_id}::integer
+	</delete>
+	
+	<delete id="deleteCmmntyMapngAnswerReport" parameterType="hashMap">
+		/* softGis.softGis.admin.AdminCmmntyDAO.deleteCmmntyMapngAnswerReport */ 
+		DELETE 
+		  FROM base.cmmnty_mapng_answer_report 
+		 WHERE answer_id = #{answer_id}::integer
+	</delete>
+	
+</mapper>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.qna.AdminQnaDAO">
+	
+	 <select id="getQna" resultType="hashmap">
+	 	/* softGis.admin.qna.AdminQnaDao.getQna */
+		SELECT 
+		     qna_id
+		   , qna_title
+		   , open_yn
+		   , to_char(reg_dt, 'YYYY-MM-DD') as reg_dt 
+		   , use_stat
+		   , qna_content 
+		   , reply_content
+		   , (CASE WHEN COALESCE(reply_content, '') = '' THEN 'N' ELSE 'Y' END) AS reply_yn
+		FROM base.qna_mngr qm
+		ORDER BY qna_id DESC
+	</select>
+	
+	<update id="updateQna" parameterType="hashmap">
+	 	/* softGis.admin.qna.AdminQnaDAO.updateQna */
+		UPDATE 
+		   base.qna_mngr 
+		 SET
+		 	  qna_title =   #{qna_title}
+			, qna_content = #{qna_content}
+			, use_stat = #{use_stat}
+			, reg_usr_id = #{session_usr_id}
+ 			, upt_dt =  now()
+ 			, open_yn = #{open_yn}
+ 			, reply_content = #{reply_content}
+		  <!--  <if test='file_id != null'>
+			   , file_id = #{file_id}
+		   </if> -->
+			 WHERE qna_id = #{qna_id}::integer
+	</update>
+	
+	
+	<delete id="deleteQna">
+	 	/* softGis.admin.qna.AdminQnaDAO.deleteQna */
+		DELETE 
+		  FROM base.qna_mngr 
+		 WHERE qna_id = #{qna_id}::integer
+	</delete>
+
+</mapper>

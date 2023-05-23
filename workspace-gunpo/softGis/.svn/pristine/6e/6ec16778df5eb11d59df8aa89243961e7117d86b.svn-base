@@ -1,0 +1,110 @@
+
+
+// 변수 선언
+:root {
+    --main_color: #554411;
+    --sub_color: #8e7954;
+    --font_color: #AEABAB;
+    --font_color02: #fff;
+}
+
+* {
+
+    h1, h2, h3, h4, h5 {
+        margin: 0;
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    ul {
+        margin: 0;
+        padding: 0;
+    }
+
+    p {
+        margin: 0;
+    }
+}
+
+
+header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    min-width: 1400px;
+    background-color: #fff;
+    height: 10.2vh;
+    box-shadow:0px 3px 6px #00000029;
+    display: flex;
+    align-items: center;
+    z-index: 10;
+    border-bottom: 1px solid $color-secondary;
+    
+    > .wrap {
+        width: calc(100% - 200px);
+        margin: auto;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    h1 {
+        width: 23.95vw;
+        height: 6.48vh;
+        background: url(../../assets/images/main/logo.png) 0 0 no-repeat;
+        background-size: contain;
+        min-width: 350px;
+
+        > a{
+            font-size: 0;
+            display: block;
+            width: inherit;
+            height: inherit;
+        }
+    }
+    
+
+    nav {
+        width: calc(100% - 460px);
+        display: flex;
+        align-items: center;
+        padding: 0 70px;
+
+        & > .gnb_menu {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            list-style: none;
+            font-weight: bold;
+    
+            li {
+                padding: 0 10px;
+
+                > a {
+                    font-size: 1.5625rem;
+                }
+
+                &:last-child {
+                padding-right: 0;
+                }
+
+                &:hover > a{
+                    color: var(--sub_color);
+                    -webkit-transform: perspective(1px) translateZ(0);
+                    transform: perspective(1px) translateZ(0);
+                    -webkit-transition-duration: 0.3s;
+                    transition-duration: 0.3s;
+                    -webkit-transition-property: color, background-color;
+                    transition-property: color, background-color;
+                }
+            }
+        }
+    }
+}
+
+
+footer {
+    text-align: center;
+    padding: 50px 0;
+}

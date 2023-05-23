@@ -1,0 +1,71 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags"%>
+<t:subapp>
+<div class="notice-main">
+	<div class="notice-wrap">
+		<h2>공지사항</h2>
+		 <form action="<c:url value="/noticeList.do" />" method="GET">
+			<label>
+				<input name="searchOption" value="all" type="radio">
+				<span>제목 + 내용</span>
+			</label>
+			<label>
+				<input name="searchOption" value="title" type="radio">
+				<span>제목</span>
+			</label>
+			<label>
+				<input name="searchOption" value="content" type="radio">
+				<span>내용</span>
+			</label>
+			<input type="text" placeholder="검색어를 입력하세요" name="search_keyword" value="${search_keyword}" onkeypress="">
+			<button type="submit">검색</button>
+		</form>
+		<table class="notice-table">
+			<thead>
+				<tr>
+			  		<th>NO</th>
+			  		<th>제목</th>
+			  		<th>등록일</th>
+				</tr>
+			</thead>
+			<tbody>
+			<c:forEach items="${noticeList}" var="item">
+				<tr>
+				<c:choose>
+					<c:when test="${item.noti_type == 'FIX'}">
+						<td>
+							<strong style="color: #0056b3;">[&nbsp;공지&nbsp;]</strong>
+						</td>
+					</c:when>
+					<c:otherwise>
+						<td>${item.noti_id}</td>
+					</c:otherwise>
+				</c:choose>
+					<td>
+						<c:choose>
+							<c:when test="${item.noti_type == 'FIX'}">
+								<a href="<c:url value='/noticeDetail.do?noti_id=${item.noti_id}' />">
+								<strong>${item.noti_title}</strong>
+							</c:when>
+							<c:otherwise>
+								<a href="<c:url value='/noticeDetail.do?noti_id=${item.noti_id}' />">
+								${item.noti_title}
+							</c:otherwise>
+						</c:choose>
+						<c:if test="${not empty item.att_file_no}">&nbsp;
+							<i class='bx bx-file' style="color:green"></i>
+						</c:if>
+						</a>
+					</td>
+					<td>${item.reg_dt}</td>
+				</tr>
+			</c:forEach>
+			</tbody>
+		</table>
+		<div class="button">
+			<a href="/main.do">홈으로 이동</a>
+		</div> 
+	</div>
+</div>
+</t:subapp>

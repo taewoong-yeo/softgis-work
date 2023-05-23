@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGIs.test.TestDAO">
+
+	<select id="getTestResultList" resultType="hashmap">
+		/* gunpo.test.TestDAO.getTestResultList */
+		SELECT
+			a.cod_cd, a.cod_nm, a.cod_desc, a.cod_idx, a.img_url 
+		FROM base.com_code a
+		WHERE (
+			a.cod_cd LIKE '%' || #{query} || '%' 
+			OR
+			a.cod_nm LIKE '%' || #{query} || '%'
+		)
+	</select>
+	
+</mapper>

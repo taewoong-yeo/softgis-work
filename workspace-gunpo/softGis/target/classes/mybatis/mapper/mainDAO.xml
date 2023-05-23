@@ -1,0 +1,421 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.main.MainDAO">
+
+	<select id="getNoticeList" resultType="hashmap">
+		/* softGis.main.MainDAO.getNoticeList */
+		SELECT 
+			a.rnum,
+			a.noti_id,
+			a.noti_type,
+			a.noti_title,
+			a.noti_content,
+			a.start_dt,
+			a.end_dt,
+			a.file_id,
+			a.reg_dt
+		FROM (
+		 	SELECT 
+					(ROW_NUMBER() OVER(ORDER BY (CASE WHEN noti_type = 'FIX' THEN 1 ELSE 2 END ) desc ,noti_id ASC)) AS rnum, 
+				  noti_id,
+				  noti_type,
+				  noti_title, 
+				  noti_content,
+				  start_dt,
+				  end_dt,
+				  file_id,
+				  to_char(reg_dt, 'YYYY-MM-DD') as reg_dt
+					  FROM base.noti_mngr
+					  WHERE noti_type NOT IN('POP') 
+					  AND use_stat ='Y' 
+					  and (to_char(now(),'yyyy-mm-dd') between start_dt and end_dt or (start_dt is null and end_dt is null))
+					  <choose>
+						  	<when test="searchOption == 'title'">
+						    	and noti_title LIKE '%${search_keyword}%'
+						  	</when>
+						  	<when test="searchOption == 'content'">
+						   	 	and noti_content LIKE '%${search_keyword}%'
+						  	</when>
+						  	<otherwise>
+						    	and (noti_title LIKE '%${search_keyword}%' or noti_content LIKE '%${search_keyword}%')
+						  	</otherwise>
+					  </choose>
+			  ORDER BY (CASE WHEN noti_type = 'FIX' THEN 1 ELSE 2 END ) ASC ,noti_id desc
+		)a
+		  LIMIT ${dataCountPerPage} OFFSET ${offsetCount} 
+	</select>
+	
+	<select id="getNoticeCount" parameterType="hashMap" resultType="hashmap">
+		SELECT COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+		FROM base.noti_mngr
+		WHERE noti_type NOT IN('POP') 
+	  	AND use_stat ='Y' 
+	  	and (to_char(now(),'yyyy-mm-dd') between start_dt and end_dt or (start_dt is null and end_dt is null))
+	  	<choose>
+		  	<when test="searchOption == 'title'">
+		   		and noti_title LIKE '%${search_keyword}%'
+		  	</when>
+		  	<when test="searchOption == 'content'">
+		    	and noti_content LIKE '%${search_keyword}%'
+		  	</when>
+		  	<otherwise>
+		   		and (noti_title LIKE '%${search_keyword}%' or noti_content LIKE '%${search_keyword}%')
+		  	</otherwise>
+		  </choose>
+	</select>
+
+	<select id="getNoticeDetail" resultType="hashmap">
+		/* softGis.main.MainDAO.getNoticeDetail */
+		SELECT a.noti_id,a.noti_title, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt, a.noti_content , a.img_blob
+			 , af.file_id, af.file_local_nm , af.file_org_nm
+		 	FROM base.noti_mngr a  LEFT JOIN base.att_file af
+		 	on a.file_id = af.file_id
+		WHERE noti_id = #{noti_id}::integer
+	</select>
+	
+	<select id="getNoticeListMain" resultType="hashmap">
+		/* softGis.main.MainDAO.getNoticeListMain */
+		SELECT noti_id,noti_title,to_char(reg_dt, 'YYYY-MM-DD') as reg_dt 
+		FROM base.noti_mngr
+		where use_stat = 'Y' 
+		and noti_type IN (${noti_type})
+		and to_char(now(),'yyyy-mm-dd') between start_dt and end_dt
+		order by start_dt desc 
+		limit 5 
+	</select>
+	
+	<select id="getFaqList" resultType="hashmap">
+		/* softGis.main.MainDAO.getFaqList */
+		
+		SELECT 
+			a.rnum,
+			a.faq_id,
+			a.faq_title,
+			a.faq_content,
+			a.faq_cat,
+			a.reg_dt
+		FROM (
+		
+		 	SELECT
+		 		(ROW_NUMBER() OVER(ORDER BY faq_id asc)) AS rnum 
+				, fm.faq_id
+				, fm.faq_title 
+				, fm.faq_content
+				, (select cd_nm from base.code where grp_id = 'FAQ_CAT' and cd_id = fm.faq_cat) as faq_cat
+				, to_char(fm.reg_dt, 'YYYY-MM-DD') as reg_dt
+			FROM base.faq_mngr fm
+			WHERE fm.use_stat ='Y' 
+			<choose>
+			<when test="searchOption == 'title'">
+				AND fm.faq_title LIKE '%${search_keyword}%'
+			</when>
+			<when test="searchOption == 'content'">
+				AND fm.faq_content LIKE '%${search_keyword}%'
+			</when>
+			<otherwise>
+				AND (fm.faq_title LIKE '%${search_keyword}%' OR fm.faq_content LIKE '%${search_keyword}%')
+			</otherwise>
+			</choose>
+			ORDER BY faq_id desc
+		) a		
+		LIMIT ${dataCountPerPage} OFFSET ${offsetCount}
+		 
+	</select>
+	
+	<select id="getFaqCount" parameterType="hashMap" resultType="hashmap">
+		/* softGis.main.MainDAO.getFaqCount */
+		SELECT
+			COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+		FROM base.faq_mngr fm
+		WHERE use_stat ='Y' 
+		<choose>
+		<when test="searchOption == 'title'">
+			AND fm.faq_title LIKE '%${search_keyword}%'
+		</when>
+		<when test="searchOption == 'content'">
+			AND fm.faq_content LIKE '%${search_keyword}%'
+		</when>
+		<otherwise>
+			AND (fm.faq_title LIKE '%${search_keyword}%' OR fm.faq_content LIKE '%${search_keyword}%')
+		</otherwise>
+		</choose>
+	</select>
+	
+	<select id="getFaqDetail" resultType="hashmap">
+		/* softGis.main.MainDAO.getfaqDetail */
+		SELECT faq_title,faq_content, to_char(reg_dt, 'YYYY-MM-DD') as reg_dt
+		 	FROM base.faq_mngr
+		WHERE faq_id = #{faq_id}::integer
+	</select>
+	
+	<select id="getFaqListMain" resultType="hashmap">
+		/* softGis.main.MainDAO.getFaqListMain */
+		SELECT 
+			 fm.faq_id
+			, fm.faq_title 
+			, to_char(fm.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.faq_mngr fm
+		WHERE fm.use_stat ='Y' 
+		AND start_dt <![CDATA[<=]]> to_char(now(),'yyyy-mm-dd')
+		LIMIT 5
+	</select>
+	
+	
+	
+	
+	<!-- 자료실 목록수 -->
+	
+	<select id="getDataCount" parameterType="hashMap" resultType="hashmap">
+		/* softGis.main.MainDAO.getDataCount */
+		SELECT
+			COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+		FROM base.data_mngr fm
+		WHERE use_stat ='Y'  
+		<choose>
+		<when test="searchOption == 'title'">
+			AND fm.data_title LIKE '%${search_keyword}%'
+		</when>
+		<when test="searchOption == 'content'">
+			AND fm.data_content LIKE '%${search_keyword}%'
+		</when>
+		<otherwise>
+			AND (fm.data_title LIKE '%${search_keyword}%' OR fm.data_content LIKE '%${search_keyword}%')
+		</otherwise>
+		</choose>
+	</select>
+	
+	
+	<!-- 자료실 목록 -->
+	<select id="getDataList" resultType="hashmap">
+		/* softGis.main.MainDAO.getDataList */
+	
+		SELECT 
+			a.rnum,
+			a.data_id,
+			a.data_title,
+			a.reg_dt
+		FROM (
+		 	SELECT 
+		 		(ROW_NUMBER() OVER(ORDER BY data_id asc)) AS rnum
+				, fm.data_id
+				, fm.data_title 
+				, to_char(fm.reg_dt, 'YYYY-MM-DD') as reg_dt
+			FROM base.data_mngr fm
+			WHERE fm.use_stat ='Y' 
+			<choose>
+			<when test="searchOption == 'title'">
+				AND fm.data_title LIKE '%${search_keyword}%'
+			</when>
+			<when test="searchOption == 'content'">
+				AND fm.data_content LIKE '%${search_keyword}%'
+			</when>
+			<otherwise>
+				AND (fm.data_title LIKE '%${search_keyword}%' OR fm.data_content LIKE '%${search_keyword}%')
+			</otherwise>
+			</choose>
+			ORDER BY data_id desc
+		) a		
+		LIMIT ${dataCountPerPage} OFFSET ${offsetCount} 
+	</select>
+	
+	<!-- 자료실 등록 -->
+	<insert id="insertData" parameterType="hashmap">
+		/* softGis.main.MainDAO.insertData */
+		INSERT
+		  INTO base.data_mngr (
+				data_id
+				,data_title
+				,data_content 
+				,file_id
+				,use_stat
+				,reg_usr_id
+				,reg_dt 
+		  ) VALUES (
+			   nextval('base.data_mngr_seq')
+			   , #{data_title}
+			   , #{data_content}
+			   , CASE WHEN #{file_id}::INTEGER = 0 THEN NULL ELSE #{file_id}::INTEGER END
+			   , 'Y'
+			   , #{session_usr_id}
+			   , NOW()
+		  )
+		<selectKey resultType="integer" keyProperty="data_id" order="AFTER">
+			SELECT CURRVAL('base.data_mngr_seq');
+		</selectKey>
+	</insert>	
+
+
+
+
+	<update id="updateData" parameterType="hashmap">
+	UPDATE base.data_mngr
+		SET
+		data_title 		 = #{data_title},
+		data_content 		 = #{data_content},
+		file_id = CASE WHEN #{file_id}::INTEGER = 0 THEN NULL ELSE #{file_id}::INTEGER END, 
+		upt_dt 		 = NOW(),
+		upt_usr_id 	 = #{session_usr_id}
+	WHERE data_id = #{data_id}::integer
+	</update>	
+
+
+	<!-- 자료실 상세내용 -->
+	<select id="getDataDetail" resultType="hashmap">
+		/* softGis.main.MainDAO.getDataDetail */
+		SELECT a.data_id
+				, a.reg_usr_id
+				, a.data_title
+				, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+				, a.data_content
+				, af.file_id
+				, af.file_local_nm 
+				, af.file_org_nm
+		 	FROM base.data_mngr a LEFT OUTER JOIN base.att_file af on a.file_id = af.file_id and af.use_stat ='Y'
+		WHERE data_id = #{data_id}::integer
+	</select>
+	
+	<!-- qna 목록 -->
+	<select id="getQnaList" resultType="hashmap">
+		/* softGis.main.MainDAO.getQnaList */
+		
+		
+		SELECT 
+			a1.rnum,
+			a1.qna_id,
+			a1.reply_yn,
+			a1.detail_yn,
+			a1.qna_title,
+			a1.open_yn,
+			a1.reg_dt
+		FROM ( 
+			SELECT
+				(ROW_NUMBER() OVER(ORDER BY a.qna_id asc)) AS rnum 
+				, a.qna_id
+				 , a.reply_yn
+			     , a.detail_yn
+				 , (CASE WHEN a.detail_yn = 'N' THEN '비밀글 입니다.' ELSE a.qna_title END ) qna_title
+				 , a.open_yn
+				 , a.reg_dt
+			  FROM (
+			 	SELECT
+					  qna_id,
+					  qna_title,
+					  CASE WHEN reply_content IS NULL THEN 'N' ELSE 'Y' END reply_yn,
+					  (CASE WHEN (CAST(#{session_usr_id} AS VARCHAR) IS NULL OR reg_usr_id != #{session_usr_id} ) AND open_yn = 'N' THEN 'N' ELSE 'Y' END ) detail_yn,
+					  open_yn,
+					  to_char(reg_dt, 'YYYY-MM-DD') as reg_dt
+				FROM base.qna_mngr
+				WHERE use_stat ='Y'
+			  <choose>
+				  	<when test="searchOption == 'title'">
+				    	AND qna_title LIKE '%${search_keyword}%'
+				  	</when>
+				  	<when test="searchOption == 'content'">
+				   	 	AND qna_content LIKE '%${search_keyword}%'
+				  	</when>
+				  	<otherwise>
+				    	AND (qna_title LIKE '%${search_keyword}%' or qna_content LIKE '%${search_keyword}%')
+				  	</otherwise>
+			  </choose>
+			  <if test="search_keyword != '' and search_keyword != null">
+				   AND (open_yn = 'Y' OR (CAST(#{session_usr_id} AS VARCHAR) IS NOT NULL AND reg_usr_id = #{session_usr_id} ) AND open_yn = 'N')   
+			  </if>
+			) a 
+			ORDER BY a.qna_id desc
+		) a1		
+		LIMIT ${dataCountPerPage} OFFSET ${offsetCount} 
+		
+	</select>
+	
+	<!-- qna 목록수 -->
+	<select id="getQnaCount" parameterType="hashMap" resultType="hashmap">
+		SELECT COUNT(*) as CNT, cast(ceil(CAST(COUNT(*) AS DOUBLE PRECISION)/10) as INTEGER) as PAGES
+		FROM base.qna_mngr
+	  	WHERE use_stat ='Y' 
+	</select>
+
+	<!-- qna 상세내용 -->
+	<select id="getQnaDetail" resultType="hashmap">
+		/* softGis.main.MainDAO.getQnaDetail */
+		SELECT a.qna_id
+				, a.qna_title
+				, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+				, a.qna_content
+				, a.reply_content 
+				, af.file_id
+				, af.file_local_nm 
+				, af.file_org_nm
+				, a.reg_usr_id
+				, a.open_yn
+				, (CASE WHEN (CAST(#{session_usr_id} AS VARCHAR) IS NULL OR a.reg_usr_id != #{session_usr_id} ) AND a.open_yn = 'N' THEN 'N' ELSE 'Y' END ) detail_yn
+				, rf.file_id reply_file_id
+				, rf.file_local_nm reply_file_local_nm
+				, rf.file_org_nm reply_file_org_nm
+		 	FROM base.qna_mngr a  
+		 	LEFT JOIN base.att_file af ON a.file_id = af.file_id and af.use_stat ='Y'
+		 	LEFT JOIN base.att_file rf on a.reply_file_id = rf.file_id and rf.use_stat ='Y'
+		WHERE a.qna_id = #{qna_id}::integer
+	      AND a.use_stat ='Y'
+	      AND (a.open_yn = 'Y' OR (CAST(#{session_usr_id} AS VARCHAR) IS NOT NULL AND a.reg_usr_id = #{session_usr_id} ) AND a.open_yn = 'N')  
+	</select>
+	
+	<!-- qna 등록 -->
+	<insert id="insertQna" parameterType="hashmap">
+		/* softGis.main.MainDAO.insertQna */
+		INSERT INTO base.qna_mngr (
+			qna_id
+			, qna_title
+			, qna_content
+			, open_yn
+			, use_stat
+			, reg_usr_id
+			, reg_dt 
+		) VALUES (
+			nextval('base.qna_mngr_seq')
+			, #{qna_title}
+			, #{qna_content}
+			, #{open_yn}
+			, 'Y'
+			, #{session_usr_id}
+			, NOW()
+		)
+	</insert>
+	
+	<update id="updateQna" parameterType="hashmap">
+	UPDATE base.qna_mngr
+	   SET
+		qna_title = #{qna_title},
+		qna_content = #{qna_content},
+		open_yn = #{open_yn}, 
+		file_id = CASE WHEN #{file_id}::INTEGER = 0 THEN NULL ELSE #{file_id}::INTEGER END, 
+		upt_dt 		 = NOW(),
+		upt_usr_id 	 = #{session_usr_id}
+	WHERE qna_id = #{qna_id}::integer
+	  AND reg_usr_id = #{session_usr_id}
+	  AND (reply_content IS NULL OR reply_content = '')
+	</update>	
+	
+	<update id="deleteQna" parameterType="hashmap">
+	UPDATE base.qna_mngr
+	   SET
+		use_stat = 'N',
+		upt_dt   = NOW(),
+		upt_usr_id 	 = #{session_usr_id}
+	WHERE qna_id = #{qna_id}::integer
+	  AND reg_usr_id = #{session_usr_id}
+	  AND (reply_content IS NULL OR reply_content = '')
+	</update>	
+	
+	<!-- 답변 알람 시간 조회 -->
+	<select id="getAnswerTime" parameterType="hashmap" resultType="String">
+		/* softGis.main.MainDAO.getAnswerTime */
+		select a.reg_dt
+		from base.cmmnty_mapng_answer a left outer join base.cmmnty_mapng b
+		on a.mapng_id = b.mapng_id 
+		where to_char(a.reg_dt,'yyyy-mm-dd HH24:MI:SS.MS') > #{alarm_time}
+		and b.reg_usr_id = #{session_usr_id} 
+		order by reg_dt desc
+		limit 1
+	</select>
+	
+</mapper>

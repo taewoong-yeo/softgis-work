@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.fileGet.FileGetDAO">
+	
+	<select id="fileGetFile" resultType="hashmap">
+	 	/* softGis.fileGet.FileDGetAO.Fileget */
+		SELECT
+			   file_org_nm
+			   , file_local_nm
+			   , file_mime
+			   , file_size
+			   , file_ext
+			   , file_path
+		  FROM base.att_file
+		 WHERE file_id = #{file_id}::INTEGER
+	</select>
+	
+	<select id="fileDeleteFile" parameterType="hashmap" resultType="hashmap" flushCache="true">
+	 	/* softGis.fileGet.FileDGetAO.Filedelete */
+		UPDATE base.att_file
+		SET use_stat = 'N'
+		WHERE file_id = #{file_id}
+		RETURNING *
+	</select>
+
+	<insert id="fileInsertFile" parameterType="hashmap">
+		/* softGis.fileGet.FileDGetAO.Fileinsert */
+		INSERT
+		  INTO base.att_file (
+			   file_org_nm
+			   , file_local_nm
+			   , file_ext
+			   , file_mime
+			   , file_size
+			   , file_path
+			   , use_stat
+			   , reg_usr_id
+		  ) VALUES (
+			   #{file_org_nm}
+			   , #{file_local_nm}
+			   , #{file_ext}
+			   , #{file_mime}
+			   , #{file_size}
+			   , #{file_path}
+			   , 'Y'
+			   , #{session_usr_id}
+		  );
+		<selectKey resultType="integer" keyProperty="file_id" order="AFTER">
+			SELECT CURRVAL('base.att_file_seq');
+		</selectKey>
+	</insert>
+	
+</mapper>

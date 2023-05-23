@@ -1,0 +1,46 @@
+ package softGis.admin;
+
+import java.util.Map;
+
+import javax.servlet.http.HttpServletRequest;
+
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+
+@Controller
+@RequestMapping(value="/admin")
+public class AdminController {
+	
+	/** 시스템 관리 > 코드 관리 **/
+	@RequestMapping(value="/admin-code.do")
+	public String adminCode(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "admin/admin-code";
+	}
+	
+	/** 시스템 관리 > 사용자 관리 **/
+	@RequestMapping(value="/admin-usr.do")
+	public String adminUsr(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "admin/admin-usr";
+	}
+	
+	/** 시스템 관리  > 설문 관리 **/
+	@RequestMapping(value="/admin-survey.do")
+	public String adminSurvey(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "admin/admin-survey";
+	}
+	
+	/** 시스템 관리  > 분석 관리 **/
+	@RequestMapping(value="/admin-analysis.do")
+	public String adminAnalysis(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "admin/admin-analysis";
+	}
+	
+	/** 시스템 관리  > 공지사항 관리 **/
+	@RequestMapping(value="/admin-notice.do")
+	public String adminNotice(HttpServletRequest request, @RequestParam Map<String, Object> paramMap, ModelMap model) {
+		return "admin/admin-notice";
+	}
+	
+}

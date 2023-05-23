@@ -1,0 +1,109 @@
+<%@ tag language="java" pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
+<%@ taglib prefix="t" tagdir="/WEB-INF/tags" %>
+<%@ attribute name="extra_head" fragment="true" required="false" %>
+<%@ attribute name="extra_body" fragment="true" required="false" %>
+<%@ attribute name="extra_foot" fragment="true" required="false" %>
+<%@ attribute name="navigation" fragment="true" required="false" %>
+<t:base extra_head="${extra_head}" extra_body="${extra_body}">
+	<div id="wrap">
+		<div class="topmenu">
+			<div class="topmenu-logo">
+				<a href="/main.do">
+					<!-- <label>빅데이터 플랫폼</label> -->
+				</a>
+			</div>
+			<nav class="topmenu-nav">
+				<ul>
+					<li>
+						<a class="topmenu-nav-menu" href="<c:url value='/service.do' />">서비스 소개</a>
+					</li>
+					<li>
+						<a class="topmenu-nav-menu" href="#">설문 만들기</a>
+						<div class="topmenu-nav-depth2">
+							<ul class="type01">
+								<li><a href="<c:url value='/survey-create.do' />"><span>설문 만들기</span></a></li>
+								<li><a href="<c:url value='/survey-my.do' />"><span>My 설문함</span></a></li>
+								<li><a href="<c:url value='/survey-format.do' />"><span>설문 서식</span></a></li>
+							</ul>
+						</div>
+					</li>
+					<li>
+                        <a class="topmenu-nav-menu" href="<c:url value='/survey-join.do' />">설문 참여하기</a>
+                    </li>
+					<li>
+						<a class="topmenu-nav-menu" href="<c:url value='/analysis.do' />">AI 분석</a>
+					</li>
+					<li>
+						<a class="topmenu-nav-menu" href="<c:url value='/noticeList.do' />">공지사항</a>
+					</li>
+					<li>
+						<a class="topmenu-nav-menu" href="#">시스템 관리</a>
+						<div class="topmenu-nav-depth2">
+							<ul class="type01">
+								<li><a href="<c:url value='/admin/admin-code.do' />"><span>코드 관리</span></a></li>
+								<li><a href="<c:url value='/admin/admin-usr.do' />"><span>사용자 관리</span></a></li>
+								<li><a href="<c:url value='/admin/admin-survey.do' />"><span>설문 관리</span></a></li>
+								<li><a href="<c:url value='/admin/admin-analysis.do' />"><span>분석 관리</span></a></li>
+								<li><a href="<c:url value='/admin/admin-notice.do'/>"><span>공지사항 관리</span></a></li>
+							</ul>
+						</div>
+					</li>
+					<c:if test="${__ADMIN__}">
+					<li>
+						<a href="<c:url value='/admin/log.do' />" class="topmenu-nav-menu">
+							관리 도구
+						</a>
+					</li>
+					</c:if>
+				</ul>
+			</nav>
+			<div class="topmenu-auth">
+				<a href="#" class="my-info" title="내정보 수정">
+					<i class="bx bxs-user-circle"></i>관리자
+				</a>
+				<a href="/logout.do" class="log-out" title="로그아웃">
+					<i class="bx bxs-log-out"></i>로그아웃
+				</a>
+			</div>
+			
+			<div class="topmenu-overlay"></div>
+		</div>
+		<div class="main">
+			<jsp:invoke fragment="navigation" />
+			<div class="ctn">
+				<jsp:doBody />
+			</div>
+		</div>
+	</div>
+</t:base>
+
+<script type="text/javascript">
+	let menu = $('.topmenu-nav-menu');
+	let gnb = $('.topmenu-nav-depth2');
+
+  	$(menu).each(function (e) {
+		$(this).on('click', function openGnb(e) {
+			let targetMenu = $(this);
+			let targetGnb = $(this).next();
+	
+			if ($(targetGnb).hasClass('active')) {
+				$(targetGnb).removeClass('active');
+				$(targetMenu).removeClass('active');
+			} else {
+				$(menu).each(function(e) {
+					$(this).removeClass('active');
+	
+					$(gnb).each(function (e) {
+						$(this).removeClass('active');
+					});
+				});
+				
+				$(targetGnb).addClass('active');
+				$(targetMenu).addClass('active');
+			}
+		});
+  	});
+	
+</script>

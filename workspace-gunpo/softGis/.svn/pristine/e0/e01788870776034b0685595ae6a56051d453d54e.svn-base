@@ -1,0 +1,97 @@
+.auth {
+	position: relative;
+	padding: $auth-padding;
+	background: #ffffff;
+	z-index: 1;
+
+	&-inner {
+		display: flex;
+		align-items: center;
+		margin: 0 auto;
+		width: 100%;
+		height: $auth-height;
+		max-width: $auth-width;
+		box-shadow: $default-shadow;
+	}
+
+	&-logo {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex: 0 0 $auth-logo-width;
+		padding: 50px;
+
+		&-bg {
+			z-index: -1;
+			position: absolute;
+			right: 0;
+			bottom: 50%;
+			width: 100vw;
+			height: 100vh;
+			min-height: $auth-height + $auth-padding * 2;
+			background: $color-primary;
+			transform: translateY(50%);
+		}
+	}
+
+	&-form {
+		flex: 1;
+		padding: 0 space(10);
+		
+		.btn_login {
+			height: 100%;
+			margin: 0;
+		}
+	}
+
+	@include breakpoint($responsive-laptop-middle) {
+		&-logo {
+			flex: 0 0 auto;
+			padding: space(4) space(2);
+			width: 100%;
+
+			&-bg {
+				right: 50%;
+				bottom: 0;
+				transform: translateX(50%);
+			}
+		}
+
+		&-inner {
+			flex-direction: column;
+			height: auto;
+			max-width: none;
+		}
+
+		&-form {
+			flex: none;
+			padding: space(4) space(2);
+			width: 100%;
+			max-width: $responsive-mobile;
+		}
+	}
+
+	@include breakpoint($responsive-mobile) {
+		padding: 0;
+
+		&-logo {
+			background: $color-primary;
+
+			img {
+				max-width: $logo-width * .7;
+				max-height: $logo-height * .7;
+			}
+		}
+
+		&-inner {
+			box-shadow: none;
+		}
+
+		&-form {
+			padding-bottom: space(6);
+		}
+	}
+}
+
+.emp-only { display: none; }

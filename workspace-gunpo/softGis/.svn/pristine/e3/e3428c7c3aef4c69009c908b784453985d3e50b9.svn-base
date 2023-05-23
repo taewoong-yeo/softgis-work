@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+    <Appenders>
+        <Console name="console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+        </Console>
+    </Appenders>
+    <Loggers>
+        
+        <Logger name="log4jdbc.debug" level="INFO" />
+        <Logger name="jdbc.sqltiming" level="INFO" />
+        
+        <Logger name="org.springframework" level="ERROR" />
+        <Logger name="egovframework" level="ERROR" />
+        <Logger name="log4jdbc.log4js" level="ERROR" />
+        
+        
+        <Logger name="org.mybatis" level="OFF" />
+        <Logger name="java.sql" level="OFF" />
+        <Logger name="org.apache" level="OFF" />
+        <Logger name="jdbc.sqlonly" level="OFF" />
+		<Logger name="jdbc.audit" level="OFF" />
+		<Logger name="jdbc.resultset" level="OFF" />
+		<Logger name="jdbc.resultsettable" level="OFF" />
+		<Logger name="jdbc.connection" level="OFF" />
+        
+        <Root level="DEBUG" additivity="false">
+            <AppenderRef ref="console" />
+        </Root>
+    </Loggers>
+</Configuration>

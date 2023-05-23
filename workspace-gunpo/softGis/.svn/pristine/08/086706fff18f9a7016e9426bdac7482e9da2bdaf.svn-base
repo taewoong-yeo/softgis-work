@@ -1,0 +1,425 @@
+$(function() {
+	var $map = null;
+	var $data = null;
+	
+	let sDate = $("#sDate").val();
+	let eDate = $("#eDate").val();
+	
+	var prevPid = 9999;
+	var prevColor = "";
+	
+	$('#MAP').on('ol-init', function(e, map, data){
+		$map = map;
+		$data = data;
+	});
+
+//	ADM_CD.forEach(function(v){
+//		$(".adm-cd select").append("<option value='"+v[0]+"'>"+v[1]+"</option>");
+//	});
+	
+	var colorArray = [
+		"#F44336" ,"#E91E63" ,"#9C27B0" ,"#673AB7"
+		,"#3F51B5" ,"#2196F3" ,"#03A9F4" ,"#00BCD4"
+		,"#009688" ,"#4CAF50" ,"#8BC34A" ,"#CDDC39"
+		,"#FFEB3B" ,"#FFC107" ,"#FF9800" ,"#FF5722"
+		,"#795548" ,"#9E9E9E" ,"#607D8B"
+	];
+	var colorArrayReverse = colorArray.reverse();
+	var admCd = "";
+	//옵션설정
+	Highcharts.setOptions({
+		colors: colorArrayReverse,
+		global: {
+			useUTC: false, // 시간이 맞지 않을때
+			thousandsSep: ',' // 천단위 콤마 설정
+		},
+		title: {
+			text: undefined //chart title
+		},
+		lang: {
+			thousandsSep: ',' //천단위 콤마 설정
+		},
+		// colors: ['#F53A00', '#FF5C00', '#E66F00', '#FF9A00', '#F5A800'],
+		xAxis: {
+			labels: {
+				//autoRotation: undefined, //글자 겹칠시 회전 설정
+			},
+			tickWidth: 0 //수치범위표시 연결 선굵기
+		},
+		yAxis: {
+			title: { enabled: false },
+			gridLineWidth: 0,
+			tickAmount: 5, // 그리드 눈금자 수
+		},
+		plotOptions: {
+			series: {
+				colorByPoint: true,
+				layoutAlgorithm: 'squarified',
+				states: {
+					inactive: {
+						opacity: 1 //차트 마우스오버시 배경 불투명도 정도
+					},
+					hover: {
+						halo: false, //pie chart mouseover effect
+					}
+				},
+				stickyTracking: false, //배경 마우스오버시 포인터 활성화 여부
+				stacking: undefined, //series 겹침 여부
+			},
+			pie: {
+				dataLabels:{
+					enabled: true,
+					style:{ // 데이터 수치 표시 스타일
+						color : "#ffffff", //텍스트 컬러
+						textOutline : "none", // 데이터 수치표시 테두리
+					}
+				},
+				borderWidth: 0, //데투리
+				borderColor: "", //테두리 색상
+				innerSize: '45%', //도넛모양 원안에 원사이즈
+			},
+		},
+		tooltip: {
+			shared: false //툴팁 공유 //여러개 상요시 false 해야 같이 선택안됨
+		},
+		legend: {
+			enabled: false //범례 여부
+		},
+		credits: {
+			enabled: false //하단 참조 주소값 여부
+		},
+		// navigation: {
+		// 	buttonOptions: {
+		// 		align: 'right',
+		// 		y: -20
+		// 	}
+		// },
+		exporting: {
+			enabled: true, //햄버거 버튼 여부
+			filename: '차트',
+			buttons: {
+				contextButton: {
+				  menuItems: ['downloadPNG', 'downloadJPEG']
+				}
+			  }
+		}
+	});
+	peopleAjax("load");
+	//이벤트
+
+	$("#inquiry button, #reset, #MAP [data-map-action=home]").on("click", function(){
+		sDate = $("#sDate").val();
+		eDate = $("#eDate").val();
+		
+		$("#admSelect option:eq(0)").attr("selected", "selected");
+		
+		peopleAjax("load");
+		resetMap();
+	});
+	
+	//이벤트 end
+
+	function peopleAjax(flagType){
+		var value = $("#dashboardValue").val();
+		var data =  {sDate : sDate, eDate : eDate};
+		$(".adm-cd select option").each(function(i, v){				
+			if(v.value == value){
+				$(this).attr("selected", "selected");
+			} else {
+				$(this).removeAttr("selected");
+			}
+		});
+		if(flagType != "load"){
+			data = {admCd : value, sDate : sDate, eDate : eDate}; 
+		}
+		$.ajax({
+			type: "GET",
+			url: Constant.CONTEXT_PATH + '/dashboardData.do',
+			async: false,
+			data : data,
+			success: function(data){
+				if(data.layout){
+					var dArray = [];
+					$(".items").each(function(i){
+						
+						let idx = data.layout[i].vis_sort;
+						let bowl = $("[data-div-name='"+idx+"']").clone(true);
+						dArray.push(bowl);
+					});
+					$(".items").each(function(i,v){
+						$(v).find(".card-box").eq(0).remove();
+						$("[data-sort='"+(i+1)+"']").append(dArray[i]);
+					});
+				}
+
+
+
+				var zonesOptions;
+				let options = {};
+
+
+				// 전체 인구 treeMap
+				document.getElementById("totalCount").innerText = numberWithCommas(data.result.total.length != 0 ? data.result.total[0].tot_val : 0);
+				if(flagType == "load"){
+					var resultData = dataTrans(data.result.population);
+					setString(data.result.population, data.visMap.population, "population");
+					resultData.sort(function(a, b){
+						return a.value - b.value;
+					})
+					resultData.forEach(function(v, i){
+						v.colorValue = i+1;
+					})
+					treeMap('population', {data : resultData});
+					
+				}
+				//행정동별 가구수
+				var admHouse = dataTrans(data.result.admHouse, 'default');
+				var admHouseOption = colorSet('#ff0000', '#f9cac6');
+				var peopleAmt = dataTrans(data.result.population, 'default');
+				setString(data.result.admHouse, data.visMap.admHouse, "disChart");
+				lineColumChart('disChart', '세대수', admHouse, '인구수', peopleAmt, "#45e6ab", ' 가구', ' 명');
+				
+				// 내국인 성비 pie
+				var resultData2 = dataTrans(data.result.nativePeopleRatio, 'multiSeries');
+				setString(data.result.nativePeopleRatio, data.visMap.nativePeopleRatio, "nativePeopleRatio");
+				resultData2.shift();
+				pieChart('nativePeopleRatio', resultData2);
+				addOption('nativePeopleRatio', {colors : ['#e61950', '#5060ba']});
+				
+				// 외국인 성비 pie
+				var resultData3 = dataTrans(data.result.frgnrPeopleRatio, 'multiSeries');
+				setString(data.result.frgnrPeopleRatio, data.visMap.frgnrPeopleRatio, "frgnrPeopleRatio");
+				resultData3.shift();
+				pieChart('frgnrPeopleRatio', resultData3);
+				addOption('frgnrPeopleRatio', {colors : ['#e61950', '#5060ba']});
+				
+				// 연령 분포
+				var resultData4 = dataTrans(data.result.peopleAges, 'multiSeries');
+				var peopleAgesColor = colorSet('#3f51b5', '#59add3');
+				setString(data.result.peopleAges, data.visMap.peopleAges, "peopleAges");
+				resultData4.shift();
+				createChart(data.visMap.peopleAges, resultData4, peopleAgesColor);
+				
+				// 연도별 인구 증감
+				var peopleIncrease = dataTrans(data.result.peopleIncrease, 'default');
+				setString(data.result.peopleIncrease, data.visMap.peopleIncrease, "peopleIncrease");
+				createChart(data.visMap.peopleIncrease, peopleIncrease);
+
+				//현황
+				var yoy = data.result.yoy;
+				if(yoy.length != 0){
+					let resultTime = stringTime(yoy[0].base_mon);
+					$("[data-chart='peopleYoYChart']").find(".cht-std").text(resultTime);
+					$("#pepleYoY p:nth-child(1) em").text(numberWithCommas(yoy[0].tot_val));
+					yoy[0].growth_tot < 0 ? $("#pepleYoY p:nth-child(2) em").attr("class", "dec") : $("#pepleYoY p:nth-child(2) em").attr("class", "inc");
+					$("#pepleYoY p:nth-child(2) em").text(yoy[0].growth_tot+'%');
+					$("#houseYoY p:nth-child(1) em").text(numberWithCommas(yoy[0].hshld_val));
+					yoy[0].growth_hshld < 0 ? $("#houseYoY p:nth-child(2) em").attr("class", "dec") : $("#houseYoY p:nth-child(2) em").attr("class", "inc"); 
+					$("#houseYoY p:nth-child(2) em").text(yoy[0].growth_hshld+'%');
+				}else{
+					let eDate = $('#eDate').val().replace("-","");
+					let resultTime = stringTime(eDate);
+					$("[data-chart='peopleYoYChart']").find(".cht-std").text(resultTime);
+					$("#pepleYoY p:nth-child(1) em").text(0);
+					$("#pepleYoY p:nth-child(2) em").text(0+'%');
+					$("#houseYoY p:nth-child(1) em").text(0);
+					$("#houseYoY p:nth-child(2) em").text(0+'%');
+				}
+				
+				setAll();
+
+				
+
+			}, error : function(error){
+				console.log(error);
+				alert("에러");
+			}
+		});// ajax end
+	}//peopleAjax end
+
+		
+
+	$("#MAP").on('ol-select', function(e, selected) {
+		mapSelect(selected);
+		$(".adm-cd select option").each(function(i, v){
+			if(v.value == selected){
+				$(this).attr("selected", "selected");
+			} else {
+				$(this).removeAttr("selected");
+			}
+		});
+	});	
+	$(".adm-cd select").on("change", function(){
+		let changed = this.value;
+		if(changed != 4141000000){
+			$("#dashboardValue").val(changed);
+			var mapChart = getChart("population");
+			
+			var pId;
+			if(mapChart.series[0].data.length != 0){
+				mapChart.series[0].data.forEach(function(a,b,c){
+					if(a.hiddenValue == $("#dashboardValue").val()){
+						pId = c.indexOf(a);
+					}
+				});
+				if(prevPid != 9999){
+					mapChart.series[0].data[prevPid].update({
+						color: prevColor
+					});
+				}
+				prevColor = mapChart.color;
+				if(pId != undefined){
+					mapChart.series[0].data[pId].update({
+						color: "#E0167B" //click color
+					});
+					prevPid = pId;
+				}
+			}
+			treeMapSelect();
+			peopleAjax();
+		} else {
+			sDate = $("#sDate").val();
+			eDate = $("#eDate").val();
+			peopleAjax("load");
+			resetMap();
+		}
+	});
+
+
+	function mapSelect(selected){
+		//treemap data color change
+		$("#dashboardValue").val(selected);
+		var mapChart = getChart("population");
+		var pId;
+		if(mapChart.series[0].data.length != 0){
+			mapChart.series[0].data.forEach(function(a,b,c){
+				if(a.hiddenValue == $("#dashboardValue").val()){
+					pId = c.indexOf(a);
+				}
+			});
+			if(prevPid != 9999 ){
+				mapChart.series[0].data[prevPid].update({
+					color: prevColor
+				});
+			}
+			prevColor = mapChart.color;
+			if(pId != undefined){
+				mapChart.series[0].data[pId].update({
+					color: "#E0167B" //click color
+				});
+				prevPid = pId;
+			}
+		}
+		peopleAjax();
+	}
+	function treeMapSelect(){
+		var dashboardValue = $("#dashboardValue").val();
+
+		if(dashboardValue) {
+			var feature = $data.filter(function(v) {
+				return v.get('adm_cd') == dashboardValue;
+			}).pop();
+
+			zoomToFeature(feature);
+
+			$map.getInteractions().forEach(function (interaction) {
+				if (interaction instanceof ol.interaction.Select) {
+					var features = interaction.getFeatures();
+
+					features.clear();
+					features.push(feature);
+				}
+			});
+		}
+
+	}
+	function zoomToFeature(feature) {
+	 	var featureExtent = feature.getGeometry().getExtent();
+	 	$map.getView().fit(featureExtent, {duration: 1000}, $map.getSize());
+	}
+	
+	//툴팁, 클릭 이벤트 셋팅
+	function setAll(){
+		//트리맵 툴팁
+		setTooltip('population', function(){
+			return this.point.name+" : "+numberWithCommas(this.point.value)+" 명";
+		});
+		//내국인 툴팁
+		setTooltip('nativePeopleRatio', function(){
+			return this.point.name+" : "+numberWithCommas(this.point.y)+" 명";
+		});
+		//외국인 툴팁
+		setTooltip('frgnrPeopleRatio', function(){
+			return this.point.name+" : "+numberWithCommas(this.point.y)+" 명";
+		});
+		//연령분포 툴팁
+		setTooltip('peopleAges', function(){
+			return this.point.name+" : "+numberWithCommas(this.point.y)+" 명";
+		});
+		//연도별 인구증감 툴팁
+		setTooltip('peopleIncrease', function(){
+			return this.point.name+" : "+numberWithCommas(this.point.y)+" 명";
+		});
+		
+		//트리맵 선택 이벤트
+		selectData('population', function(event) {
+			//treemap data color change
+			var pId = this.series.data.indexOf(this); //click data index
+			var chart = this;
+			if(prevPid != 9999){
+				chart.series.data[prevPid].update({
+					color: prevColor
+				});
+			}
+			prevColor = chart.color;
+			chart.series.data[pId].update({
+				color: "#E0167B" //click color
+			});
+			prevPid = pId;
+			//chart redraw
+			$("#dashboardValue").val(event.point.options.hiddenValue);
+			treeMapSelect();
+			peopleAjax();
+			
+		});
+	}
+	
+	//지도 리셋
+	function resetMap(){
+		$map.getInteractions().forEach(function (interaction) {
+			if (interaction instanceof ol.interaction.Select) {
+				var features = interaction.getFeatures();
+				features.clear();
+			}
+		});
+		
+		$map.getView().setCenter([14128909.077720348,4487110.967637017]);
+		$map.getView().setZoom(13);
+	}
+	
+	function setString(data, visMap, id){
+		var v = visMap[0];
+		if(v.use_at == "Y"){
+			if(data != null && data.length != 0){
+				var d = data[0];
+			
+				let resultTime = stringTime(d.base_mon);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);
+			}else{
+				let eDate = $('#eDate').val().replace("-","");
+				let resultTime = stringTime(eDate);
+				$("[data-chart='"+id+"']").find(".cht-title").text(v.vis_nm);
+				$("[data-chart='"+id+"']").find(".cht-std").text(resultTime);
+			}
+		}else{
+			if($("#"+id).parents(".card-box").find(".dual-chart").length != 0){
+				$("#"+id).parent().hide();
+			}else{
+				$("#"+id).parents(".card-box").children().hide();
+			}
+		}
+	}
+	
+});
+

@@ -1,0 +1,351 @@
+import Loading from '../modules/loading';
+
+const HTML = {
+	ADD_BUTTON: `
+		<a role="button" class="admin-dashboard-catalog-add">분석 활용 데이터 추가</a>
+	`,
+	DELETE_BUTTON: `
+		<a role="button" class="admin-dashboard-catalog-delete">삭제</a>
+	`,
+	DATE_CHANGER: (v) => `
+		<select class="admin-dashboard-catalog-date">
+			${v.mta_dates.map(d => `<option value="${d}" ${d == v.pm_date ? 'selected' : ''}>${d}</option>`).join('')}
+		</select>
+	`,
+	USE_STAT_SWITCH: (v) => `
+		<label class="admin-dashboard-catalog-use-stat switch">
+			<input type="checkbox" ${v.use_stat === 'Y' ? 'checked' : ''}>
+			<span></span>
+		</label>
+	`,
+	SEQUENCE_CHANGER: `
+		<div class="u-text-align-center">
+			<a class="bx bx-chevron-up-circle admin-dashboard-catalog-up"></a>
+			<a class="bx bx-chevron-down-circle admin-dashboard-catalog-down"></a>
+		</div>
+	`,
+	GRID: `
+		<table class="admin-dashboard-catalog-grid">
+			<thead>
+				<tr>
+					<th data-field="data_desc">테이블 설명</th>
+					<th data-field="data_tbl">테이블 이름</th>
+					<th data-field="use_stat" data-fit>사용여부</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+	`,
+	DIALOG: `
+		<table class="admin-dashboard-catalog-dialog-grid">
+			<thead>
+				<tr>
+					<th data-field="data_tbl">테이블 설명</th>
+					<th data-field="data_desc">테이블 이름</th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+	`,
+	NO_DATA: kendo.ui.Grid.prototype.options.messages.noRecords,
+	NO_SELECT: `정책 등록 후 이용해 주십시오`
+};
+
+class AdmindashboardCatalogManager {
+	constructor(opts = {}) {
+		if(opts.manager === undefined)
+			throw new ReferenceError('Invaild admin column manager object');
+
+		if(opts.$element === undefined)
+			throw new ReferenceError('Invaild target element');
+
+		if(typeof(opts.urls) !== 'object'
+			|| opts.urls.get === undefined
+			|| opts.urls.insert === undefined
+			|| opts.urls.update === undefined
+			|| opts.urls.delete === undefined
+			|| opts.urls.catalog === undefined)
+			throw new ReferenceError('Invaild URLs');
+
+		this.manager = opts.manager;
+
+		this.urls = opts.urls;
+
+		this.$element = $(opts.$element);
+		this.$grid = undefined;
+		this.$dialog = undefined;
+		this.$dialogGrid = undefined;
+
+		this.kendoGridOption = opts.kendoGridOption;
+		this.kendoDialogOption = opts.kendoDialogOption;
+		this.kendoDialogGridOption = opts.kendoDialogGridOption;
+
+		this.init();
+	}
+
+	get grid() {
+		return this.$grid.data('kendoGrid');
+	}
+
+	get dialog() {
+		return this.$dialog.data('kendoDialog');
+	}
+
+	get dialogGrid() {
+		return this.$dialogGrid.data('kendoGrid');
+	}
+
+	init() {
+		this.initGrid();
+		this.initDialog();
+
+
+		this.$element.on('add', onSubmit.bind(this));
+		this.$element.on('click', '.admin-dashboard-catalog-add', onAddButtonClick.bind(this));
+		this.$element.on('click', '.admin-dashboard-catalog-delete', onDeleteButtonClick.bind(this));
+		this.$element.on('click', '.admin-dashboard-catalog-use-stat', onUseStatSwitchClick.bind(this));
+		this.$element.on('click', '.admin-dashboard-catalog-up, .admin-dashboard-catalog-down', onSequenceChangerClick.bind(this));
+		this.$element.on('change', '.admin-dashboard-catalog-date', onDateSelectChange.bind(this));
+		this.manager.grid.bind('change', onManagerGridChange.bind(this));
+
+		async function onSubmit(e) {
+			const preData = this.manager.currentRowData;
+			const rowData = this.dialogGrid.dataItem(this.dialogGrid.select()).toJSON();
+			const mergedData = $.extend(true, {}, preData, rowData);
+
+			Loading.show();
+
+			try {
+				await $.post(this.urls.insert, mergedData);
+
+				alert('추가가 완료되었습니다.');
+
+				this.grid.dataSource.read();
+
+				this.dialog.close();
+			} finally {
+				Loading.hide();
+			}
+
+			return false;
+		}
+
+		function onAddButtonClick(e) {
+			e.preventDefault();
+
+			const $this = $(e.currentTarget);
+
+			if($this.hasClass('active')) {
+				this.dialogGrid.dataSource.read();
+				this.dialog.open();
+			}
+		}
+
+		async function onDeleteButtonClick(e) {
+			e.preventDefault();
+
+			const $this = $(e.currentTarget);
+			const $row = $this.closest('tr');
+
+			const rowData = this.grid.dataItem($row);
+
+			Loading.show();
+
+			try {
+				await $.post(this.urls.delete, rowData.toJSON());
+
+				alert('삭제가 완료되었습니다.');
+
+				this.grid.dataSource.read();
+			} finally {
+				Loading.hide();
+			}
+		}
+
+		async function onUseStatSwitchClick(e) {
+			const $this = $(e.currentTarget);
+			const $row = $this.closest('tr');
+			const $input = $this.find('input');
+
+			const rowData = this.grid.dataItem($row);
+
+			const useStat = $input.prop('checked') ? 'Y' : 'N';
+
+			rowData.use_stat = useStat;
+
+			Loading.show();
+
+			try {
+				await $.post(this.urls.update, rowData.toJSON());
+			} finally {
+				Loading.hide();
+			}
+		}
+
+		async function onSequenceChangerClick(e) {
+			const $this = $(e.currentTarget);
+			const $row = $this.closest('tr');
+
+			const isUp = $this.is('.admin-dashboard-catalog-up');
+			const isDown = $this.is('.admin-dashboard-catalog-down');
+
+			const dataSource = this.grid.dataSource;
+			const rowData = this.grid.dataItem($row);
+
+			const idx = dataSource.indexOf(rowData);
+			const len = dataSource.total();
+
+			let dstIdx, dstData;
+
+			if(isUp && idx > 0) {
+				dstIdx = idx - 1;
+			} else if(isDown && idx < len - 1) {
+				dstIdx = idx + 1;
+			}
+
+			if(dstIdx === undefined)
+				return;
+
+			dstData = dataSource.at(dstIdx);
+
+			rowData.pm_idx = dstData.pm_idx;
+
+			Loading.show();
+
+			try {
+				await $.post(this.urls.update, rowData.toJSON());
+
+				dataSource.read();
+			} finally {
+				Loading.hide();
+			}
+		}
+
+		async function onDateSelectChange(e) {
+			const $this = $(e.currentTarget);
+			const $row = $this.closest('tr');
+
+			const rowData = this.grid.dataItem($row);
+
+			rowData.pm_date = $this.val();
+
+			Loading.show();
+
+			try {
+				await $.post(this.urls.update, rowData.toJSON());
+
+				this.grid.dataSource.read();
+			} finally {
+				Loading.hide();
+			}
+		}
+
+		function onManagerGridChange(e) {
+			const getGridButton = () => this.$element.find('.admin-dashboard-catalog-add');
+
+			const currentRowData = this.manager.currentRowData;
+
+			this.grid.options.messages.noRecords = currentRowData ? HTML.NO_DATA : HTML.NO_SELECT;
+			this.grid.dataSource.page(1);
+
+			if(currentRowData) {
+				this.grid.setOptions({
+					dataSource: {
+						transport: {
+							read: {
+								data: currentRowData
+							}
+						}
+					}
+				});
+
+				getGridButton().addClass('active');
+			} else {
+				this.grid.setOptions({ });
+				this.grid.dataSource.data([]);
+
+				getGridButton().removeClass('active');
+			}
+		}
+	}
+
+	initGrid() {
+		this.$element.html(HTML.GRID);
+
+		const kendoGridOption = {
+			selectable: false,
+			pageable: false,
+			toolbar: [
+				{ template: HTML.ADD_BUTTON }
+			],
+			columns: [
+				{ field: 'data_desc', title: '테이블 설명' },
+				{ field: 'data_tbl', title: '테이블 이름' },
+				// { field: 'pm_date', title: '기준일자', template: HTML.DATE_CHANGER, width: 150 },
+				// { field: 'pm_idx', title: '순서', template: HTML.SEQUENCE_CHANGER },
+				{ field: 'use_stat', title: '사용여부', template: HTML.USE_STAT_SWITCH },
+				{ template: HTML.DELETE_BUTTON, width: 78 }
+			],
+			dataSource: {
+				transport: {
+					read: {
+						url: this.urls.get
+					}
+				}
+			},
+			messages: {
+				noRecords: HTML.NO_SELECT
+			}
+		};
+
+		const $grid = this.$element.find('.admin-dashboard-catalog-grid');
+
+		this.$grid = $grid;
+		this.$grid.kendoGrid($.extend(true, {}, Constant.KENDO_DEFAULT_GRID_OPTION, kendoGridOption, this.kendoGridOption));
+
+		this.grid.dataSource.data([]);
+		this.grid.autoFitColumn(3);
+	}
+
+	initDialog() {
+		const kendoDialogOption = {
+			title: '분석 활용 데이터 추가',
+			actions: [
+				{ text: '취소' },
+				{ text: '추가', primary: true, action: e => {
+					this.$element.trigger('add');
+
+					return false;
+				} }
+			]
+		};
+
+		const kendoDialogGridOption = {
+			columns: [
+				{ field: 'data_desc', title: '테이블 설명' },
+				{ field: 'data_tbl', title: '테이블 이름', width: 100 }
+			],
+			dataSource: {
+				pageSize: 10,
+				transport: {
+					read: {
+						url: this.urls.catalog
+					}
+				}
+			},
+		};
+
+		const $dialog = $('<div class="admin-dashboard-catalog-dialog"/>');
+		$dialog.appendTo($('body'));
+		$dialog.html(HTML.DIALOG);
+		$dialog.kendoDialog($.extend(true, {}, Constant.KENDO_DEFAULT_DIALOG_OPTION, kendoDialogOption, this.kendoDialogOption));
+
+		const $dialogGrid = $dialog.find('.admin-dashboard-catalog-dialog-grid');
+		$dialogGrid.kendoGrid($.extend(true, {}, Constant.KENDO_DEFAULT_GRID_OPTION, kendoDialogGridOption, this.kendoDialogGridOption));
+
+		this.$dialog = $dialog;
+		this.$dialogGrid = $dialogGrid;
+	}
+}
+
+export default AdmindashboardCatalogManager;

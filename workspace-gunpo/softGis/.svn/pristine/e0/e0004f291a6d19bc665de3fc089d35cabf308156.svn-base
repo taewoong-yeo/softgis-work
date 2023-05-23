@@ -1,0 +1,60 @@
+.btn {
+	position: relative;
+	display: inline-block;
+	border: 1px solid #000;
+	border-radius: $default-border-radius;
+	padding: space(1) space(2);
+	background: transparent;
+	font-size: em(14px);
+	font-weight: 500;
+	outline: none;
+	cursor: pointer;
+	user-select: none;
+	
+	@each $name, $color in map-merge($ui-light, $ui-dark) {
+		&-#{$name}, &-#{$name}-filled {
+			background: $color;
+		}
+
+		&-#{$name}-border {
+			border: 1px solid $color;
+			background: transparent;
+		}
+	}
+
+	@each $name, $color in $ui-dark {
+		&-#{$name}, &-#{$name}-filled {
+			border: 0;
+			color: #FFF;
+		}
+
+		&-#{$name}-border {
+			color: $color;
+			border: 1px solid $color;
+		}
+	}
+}
+
+.login_btn {
+	width: 155px;
+	height: 45px;
+	margin: 0 2px;
+}
+
+@media (max-width:1280px){
+	.login_btn {
+		width: 95px;
+	}
+	
+	.naver {
+		content: url(/assets/images/login/btn_naver_login_m.png);
+	}
+	
+	.kakao {
+		content: url(/assets/images/login/btn_kakao_login_m.png);
+	}
+	
+	.google {
+		content: url(/assets/images/login/btn_google_login_m.png);
+	}
+}

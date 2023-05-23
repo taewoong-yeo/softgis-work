@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.faq.AdminFaqDAO">
+	
+	<select id="getFaq" resultType="hashmap">
+	 	/* softGis.admin.faq.AdminFaqDAO.getfaq */
+	  	SELECT
+		   	a.faq_id
+		   	, a.faq_title
+		   	, a.faq_content
+		   	, a.use_stat
+		   	, a.start_dt
+			, a.file_id
+			, b.file_local_nm 
+			, b.file_org_nm
+			, CASE WHEN ROUND(b.file_size/1024.0, 2) > 1024 THEN ROUNd(b.file_size/1024.0/1024, 2) || ' Mb'
+				   ELSE ROUND(b.file_size/1024.0, 2) || ' Kb' END AS file_size
+		   	, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+			, a.faq_cat
+			, (select cd_nm from base.code where grp_id='FAQ_CAT' and cd_id = a.faq_cat) as faq_cat_nm
+		FROM base.faq_mngr  a
+		LEFT JOIN base.att_file b ON a.file_id = b.file_id
+		ORDER BY faq_id DESC
+	</select>
+	
+	<select id="getFaqById" resultType="hashmap">
+	 	/* softGis.admin.faq.AdminFaqDAO.getFaqById */
+	 	
+	  	SELECT
+		   	a.faq_id
+		   	, a.faq_title
+		   	, a.faq_content
+		   	, a.use_stat
+		   	, a.start_dt
+		   , a.file_id
+		   , b.file_local_nm as att_file_nm
+			, CASE WHEN ROUND(b.file_size/1024.0, 2) > 1024 THEN ROUNd(b.file_size/1024.0/1024, 2) || ' Mb'
+				   ELSE ROUND(b.file_size/1024.0, 2) || ' Kb' END AS file_size
+		   	, to_char(a.reg_dt, 'YYYY-MM-DD') as reg_dt
+		FROM base.faq_mngr  a
+		LEFT JOIN base.att_file b ON a.file_id = b.file_id
+		WHERE a.faq_id = #{faq_id}::integer
+		
+	</select>
+
+
+	<insert id="insertFaq" parameterType="hashmap">
+		/* softGis.admin.faq.AdminFaqDAO.insertfaq */
+			INSERT 
+			 INTO base.faq_mngr(
+				  faq_title
+				, faq_content
+				, use_stat
+				, reg_usr_id
+				, start_dt
+				, file_id
+				, faq_cat
+			) VALUES (
+				  #{faq_title}
+				, #{faq_content}
+				, #{use_stat}
+				, #{session_usr_id}
+				, #{start_dt}
+		  		, #{file_id}
+		  		, #{faq_cat}
+			)
+	</insert>
+	
+	<update id="updateFaq" parameterType="hashmap">
+	 	/* softGis.admin.faq.AdminFaqDAO.updateFaq */
+		UPDATE 
+		   base.faq_mngr 
+		 SET
+		 	  faq_title =   #{faq_title}
+			, faq_content = #{faq_content}
+			, use_stat = #{use_stat}
+			, reg_usr_id = #{session_usr_id}
+			, start_dt = #{start_dt}
+			, upt_usr_id =  #{session_usr_id}
+ 			, upt_dt =  now()
+ 			, faq_cat = #{faq_cat}
+		   <if test='file_id != null'>
+			   , file_id = #{file_id}
+		   </if>
+		   
+			 WHERE faq_id = #{faq_id}::integer
+	</update>
+	
+	<delete id="deleteFaq">
+	 	/* softGis.admin.faq.AdminFaqDAO.deletefaq */
+		DELETE 
+		  FROM base.faq_mngr 
+		 WHERE faq_id = #{faq_id}::integer
+	</delete>
+
+	<update id="deleteFaqAttachment">
+	 	/* softGis.admin.faq.AdminFaqDAO.deleteFaqAttachment */
+		UPDATE base.faq_mngr
+		   SET file_id = null
+		 WHERE faq_id = #{faq_id}::integer
+	</update>
+
+</mapper>

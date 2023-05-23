@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.core.CoreDAO">
+	
+	<select id="getCodesForInterceptor" parameterType="hashmap" resultType="hashmap">
+		/* softGis.core.CoreDAO.getCodesForInterceptor */
+		SELECT
+			a.cd_id, a.cd_nm, a.grp_id, a.ord
+		FROM base.code a, base.group_code b
+		WHERE a.grp_id = b.grp_id
+			AND a.use_stat = 'Y'
+			AND b.use_stat = 'Y'
+		<if test="col!= null and con != null">
+			AND ${col} = #{con}
+		</if>
+		ORDER BY a.ord ASC;
+	</select>
+	
+	<select id="getTableExistence" resultType="boolean">
+		/* softGis.core.CoreDAO.getTableExistence */
+		SELECT EXISTS (
+			SELECT
+				schemaname, tablename 
+			FROM pg_catalog.pg_tables
+			WHERE schemaname = #{schema_nm} AND tablename = #{table_nm}
+		);
+	</select>
+	
+	<update id="createTextTable">
+		/* softGis.core.CoreDAO.createTextTable */
+		CREATE TABLE ${schema_nm}.${table_nm} (
+		<foreach collection="columns" item="column" separator=", ">
+			"${column}" VARCHAR
+		</foreach>
+		);
+	</update>
+
+	<insert id="insertTextData" parameterType="hashmap">
+		/* softGis.core.CoreDAO.insertTextData*/
+		INSERT INTO ${schema_nm}.${table_nm} (
+		<foreach collection="columns" item="column" separator=", ">
+		   ${column}
+		</foreach>
+		) VALUES (
+	<foreach collection="datas" item="data" separator="), (">
+		<foreach collection="columns" item="column" separator=", ">
+			'${data.get(column)}'
+		</foreach>
+	</foreach>
+		);
+	</insert>
+	
+	<update id="deleteTable">
+		/* softGis.core.CoreDAO.deleteTable */
+		DROP TABLE IF EXISTS ${schema_nm}."${table_nm}";
+	</update>
+	
+	<update id="commentTable" parameterType="hashmap">
+		/* softGis.core.CoreDAO.commentTable */
+		COMMENT ON TABLE ${schema_nm}."${table_nm}" IS #{table_nm};
+	</update>
+	
+	<update id="commentColumn" parameterType="hashmap">
+		/* softGis.core.CoreDAO.commentColumn */
+	<foreach collection="columns" item="column" separator="">
+		COMMENT ON COLUMN ${schema_nm}."${table_nm}"."${column}" IS #{column_kor};
+	</foreach>
+	</update>
+	
+	<update id="updateImporterCharacterField">
+		/* softGis.core.CoreDAO.updateImporterCharacterField */
+		UPDATE ${schema_nm}."${table_nm}"
+		SET
+		<foreach collection="fields" item="field" separator=", ">
+			"${field}" = CONVERT_FROM(CONVERT_TO("${field}", 'iso-8859-1'), 'utf-8')
+		</foreach>
+	</update>
+	
+	<update id="createColctTextTable">
+		/* softGis.core.CoreDAO.createColctTable */
+		CREATE TABLE ${schema_nm}.${table_nm} (
+		<foreach collection="columns" item="column" separator=", ">
+			"${column}" TEXT
+		</foreach>
+		);
+	</update>
+	
+	<insert id="insertColctTextData" parameterType="hashmap">
+		/* softGis.core.CoreDAO.insertColctData */
+		INSERT INTO ${schema_nm}.${table_nm} (
+		<foreach collection="columns" item="column" separator=", ">
+		   ${column}
+		</foreach>
+		) VALUES (
+		<foreach collection="datas" item="data" separator="), (">
+			<foreach collection="columns" item="column" separator=", ">
+				'${data.get(column)}'
+			</foreach>
+		</foreach>
+		);
+	</insert>
+	
+	<update id="createGeoJsonTable">
+		/* softGis.core.CoreDAO.createGeoJsonTable */
+		CREATE TABLE ${schema_nm}.${table_nm} (
+			id TEXT
+			, present_sn TEXT
+			, lclas_cl TEXT
+			, mlsfc_cl TEXT
+			, sclas_cl TEXT
+			, atrb_se TEXT
+			, wtnnc_sn TEXT
+			, ntfc_sn TEXT
+			, dgm_nm TEXT
+			, dgm_ar TEXT
+			, dgm_lt TEXT
+			, signgu_se TEXT
+			, excut_se TEXT
+			, sig_nam TEXT
+			, lcl_nam TEXT
+			, mls_nam TEXT
+			, scl_nam TEXT
+			, atr_nam TEXT
+			, pmi_nam TEXT
+			, exc_nam TEXT
+			, geometry geometry
+		);
+	</update>
+	
+	<insert id="insertGeoJsonData" parameterType="hashmap">
+		/* softGis.core.CoreDAO.insertGeoJsonData */
+		INSERT INTO ${schema_nm}.${table_nm} (
+			id, present_sn, lclas_cl, mlsfc_cl, sclas_cl, atrb_se, wtnnc_sn, ntfc_sn, dgm_nm, dgm_ar
+			, dgm_lt, signgu_se, excut_se, sig_nam, lcl_nam, mls_nam, scl_nam, atr_nam, pmi_nam, exc_nam, geometry
+		) VALUES (
+		<foreach collection="datas" item="data" separator="), (">
+			#{data.id}
+			, #{data.present_sn}
+			, #{data.lclas_cl}
+			, #{data.mlsfc_cl}
+			, #{data.sclas_cl}
+			, #{data.atrb_se}
+			, #{data.wtnnc_sn}
+			, #{data.ntfc_sn}
+			, #{data.dgm_nm}
+			, #{data.dgm_ar}
+			, #{data.dgm_lt}
+			, #{data.signgu_se}
+			, #{data.excut_se}
+			, #{data.sig_nam}
+			, #{data.lcl_nam}
+			, #{data.mls_nam}
+			, #{data.scl_nam}
+			, #{data.atr_nam}
+			, #{data.pmi_nam}
+			, #{data.exc_nam}
+			, ST_SetSRID(ST_GeomFromGeoJSON(#{data.geometry}), 5179)
+		</foreach>
+		);
+	</insert>
+	
+	<!-- 지역 도/시 코드 조회 -->
+	<select id="getBndSdCdList" parameterType="hashmap" resultType="hashmap">
+		/* softGis.core.CoreDAO.getBndSdCdList */
+		select sd_cd ,sd_nm
+		from base.bnd_sgg
+		group by sd_cd, sd_nm
+		order by sd_cd
+	</select>
+	
+	<!-- 지역 시군구 코드 조회 -->
+	<select id="getBndSggCdList" parameterType="hashmap" resultType="hashmap">
+		/* softGis.core.CoreDAO.getBndSggCdList */
+		select sgg_cd, sgg_nm
+		from base.bnd_sgg
+		where sd_cd = #{sd_cd}::INTEGER
+		order by sgg_cd
+	</select>
+	
+</mapper>

@@ -1,0 +1,45 @@
+$default-font-family: 'Noto Sans KR', sans-serif;
+$default-font-size: 14px;
+$default-font-weight: 400;
+$default-letter-spacing: -0.05em;
+$default-line-height: 1.15;
+$default-paragraph-line-height: 1.5;
+$default-border-radius: 6px;
+$default-space: rem(10px);
+$default-duration: .2s;
+$default-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+$default-transition: $default-duration $default-easing;
+$default-shadow: 0 0 30px rgba(0,0,0,.2);
+
+$color-default: #222222;
+$color-primary: #1e9893;
+$color-primary2: #369d85;
+$color-secondary: #166f88;
+$color-highlight: #3baff1;
+$color-background: #eef0f5;
+$color-dark: #04475c;
+$color-light: #dbe5ef;
+$color-lightgray: #999999;
+$color-gray: #777777;
+$color-error: #eb5d68;
+
+$font-weight-light: 300;
+$font-weight-regular: 400;
+$font-weight-medium: 500;
+$font-weight-bold: 700;
+
+$ui-light: (
+	'background': $color-background,
+	'light': $color-light,
+	'lightgray': $color-lightgray,
+	'gray': $color-gray
+);
+
+$ui-dark: (
+	'default': $color-default,
+	'primary': $color-primary,
+	'secondary': $color-secondary,
+	'highlight': $color-highlight,
+	'dark': $color-dark,
+	'error': $color-error
+);

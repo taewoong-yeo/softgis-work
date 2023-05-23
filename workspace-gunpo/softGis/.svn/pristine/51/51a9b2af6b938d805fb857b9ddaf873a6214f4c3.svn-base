@@ -1,0 +1,33 @@
+### system - test server ### 
+sys.name = softGis
+sys.upload = /mnt/upload-softGis
+sys.upload_win = C:/upload-softGis
+sys.ip =  landnavi.com
+sys.port = 80
+
+### system - production server ###
+
+
+#### database ####
+db.url = jdbc:log4jdbc:postgresql://118.67.133.48:15435/softgis
+db.type = postgres
+db.user = postgres
+db.passwd = ejdnjsxpzm1!
+db.driver = net.sf.log4jdbc.sql.jdbcapi.DriverSpy
+
+#### social login ####
+social.kakao.client_id = 57cb8a8524d676883cac3850964b1601
+social.kakao.redirect_uri = http://localhost/loginKakao.do
+social.naver.client_id = ZYQxjeXAFGDGRwM8lSuN
+social.naver.redirect_uri = http://localhost/loginNaver.do
+social.naver.client_secret = ep_jGHpRmq
+social.google.client_id = 264063568345-jvtud4ta57g8shmfcpkdp441bifpf1kn.apps.googleusercontent.com
+social.google.redirect_uri = http://localhost/loginGoogle.do
+social.google.client_secret = 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
+
+#### mail ####
+mail.smtp.port = 587
+mail.host = smtp.gmail.com
+mail.id = landnavimaster@gmail.com
+mail.pwd = flmkttcggpxrhzyf
+mail.sender = Community Mapping

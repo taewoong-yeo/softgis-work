@@ -1,0 +1,15 @@
+@function rem($px) {
+	@return calc($px / $default-font-size) * 1rem;
+}
+
+@function em($px, $base: $default-font-size) {
+	@return calc($px / $base) * 1em;
+}
+
+@function space($mul, $base: $default-space) {
+	@return $base * $mul;
+}
+
+@function curl($relative-path, $context-path: $context-path) {
+	@return url($context-path + $relative-path);
+}

@@ -1,0 +1,63 @@
+.ol {
+	$self: &;
+	
+	&-tooltip {
+		background: rgba($color-primary,.7);
+		border-radius: $default-border-radius;
+		padding: space(.5) space(.6);
+		color: #fff;
+		white-space: nowrap;
+		font-size: rem(12px);
+		user-select: none;
+
+		&.hidden {
+			display: none;
+		}
+	}
+
+	.map & {
+		&-control:not(#{$self}-overviewmap),
+		&-overviewmap button {
+			display: none !important;
+		}
+
+		&-overviewmap {
+			top: auto;
+			left: auto;
+			bottom: auto;
+			right: auto;
+			margin: space(3);
+			padding: 0;
+			background: transparent;
+
+			&-map {
+				@extend %mapUiContainer;
+
+				border: 2px solid #FFF;
+				border-radius: $default-border-radius;
+			}
+		}
+	}
+	
+	@each $d in 'lb', 'lt', 'rb', 'rt' {
+		.map-ov-#{$d} &-overviewmap {
+			@include mapUiPosition($d);
+		}
+
+		.map-ov-#{$d} .map-ui-#{$d} ~ &-viewport &-overviewmap {
+			margin: space(1.5) space(6);
+		}
+	}
+
+	&-label {
+		position: relative;
+		top: -10px;
+		left: -30px;
+		border-radius: 20px;
+		width: 60px;
+		height: 20px;
+		text-align: center;
+		color: #fff;
+		user-select: none;
+	}
+}

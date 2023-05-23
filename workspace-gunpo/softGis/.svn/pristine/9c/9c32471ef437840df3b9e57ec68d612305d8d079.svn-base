@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.admin.stopwords.AdminStopwordsDAO">
+	
+	<!-- 불용어목록 조회 -->
+	<select id="getStopwordsList" parameterType="hashMap" resultType="hashmap">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.getStopwordsList */
+		SELECT id
+				, word
+				, use_stat
+				, to_char(reg_dt, 'YYYY-MM-DD') AS reg_dt
+		FROM base.stopwords
+		WHERE 1=1
+			<if test="sch_id != '' and sch_id != null">
+  				AND id LIKE '%' || #{sch_id} || '%'
+  			</if>
+			<if test="sch_word != '' and sch_word != null">
+		  		AND word LIKE '%' || #{sch_word} || '%'
+			</if>
+			<if test="sch_use_stat != '' and sch_use_stat != null">
+		  		AND use_stat = #{sch_use_stat}
+			</if>
+		 ORDER BY id ASC
+	</select>
+	
+	<!-- 불용어 조회 -->
+	<select id="getStopwordsDetail" parameterType="hashMap" resultType="hashmap">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.getStopwordsDetail */
+		SELECT id
+				, word
+				, use_stat
+		FROM base.stopwords
+		WHERE id = #{id}
+	</select>
+	
+	<!-- 불용어 존재여부 확인 -->
+	<select id="getStopwordsExist" parameterType="hashMap" resultType="String">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.getStopwordsExist */
+		SELECT word
+		FROM base.stopwords
+		WHERE word = #{word}
+	</select>
+	
+	<!-- 불용어 등록 -->
+	<insert id="insertStopwords" parameterType="hashmap">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.insertStopwords */
+		INSERT INTO base.stopwords
+			(id
+			, word
+			, use_stat
+			, reg_usr_id
+			, reg_dt)
+		VALUES (nextval('base.stopwords_seq')
+			, #{word}
+			, 'Y'
+			, #{session_usr_id}
+			, NOW())
+	</insert>
+	
+	<!-- 불용어 수정 -->
+	<update id="updateStopwords" parameterType="hashmap">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.updateStopwords */
+		UPDATE base.stopwords
+		SET  word = #{word}
+			, use_stat = #{use_stat}
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE id = #{id}::INTEGER
+	</update>
+	
+	<!-- 불용어 삭제 -->
+	<delete id="deleteStopwords" parameterType="hashmap">
+	 	/* softGis.admin.stopwords.AdminStopwordsDAO.deleteStopwords */
+		UPDATE base.stopwords
+		SET  use_stat = 'N'
+			, upt_usr_id = #{session_usr_id}
+			, upt_dt = NOW()
+		WHERE id = #{id}::INTEGER
+	</delete>
+</mapper>

@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="softGis.catalog.CatalogDAO">
+
+	<!-- 데이터 카탈로그 -->
+	<select id="getMetadatas" resultType="java.util.LinkedHashMap" parameterType="hashMap">
+		/* softGis.catalog.CatalogDAO.dataCatalogList */
+		SELECT
+			a.mta_id
+			, a.mta_cd
+			, a.mta_nm
+			, a.mta_desc
+			, a.mta_src
+			, COALESCE(MAX(b.data_tbl), TO_CHAR(a.reg_dt,'YYYY-MM')) as mta_tbl_last
+			, c.cd_nm AS mta_fcly_nm
+			, d.cd_nm AS mta_gther_nm
+			, a.use_stat
+			, a.mta_tbl
+			, a.mta_cat
+			, e.cd_nm AS mta_cat_nm
+		FROM base.mta_data a
+		LEFT JOIN base.mta_data_tbl b ON a.mta_id = b.mta_id AND a.mta_cd = b.mta_cd
+		LEFT JOIN base.code c ON c.grp_id = 'DATA_FCLY' AND a.mta_fcly = c.cd_id
+		LEFT JOIN base.code d ON d.grp_id = 'DATA_GTHER' AND a.mta_gther = d.cd_id
+		LEFT JOIN base.code e ON e.grp_id = 'DATA_CATE' AND a.mta_cat = e.cd_id
+		WHERE a.use_stat = 'Y'
+			AND a.open_out_stat = 'Y'
+		<if test="query != null">AND (a.mta_nm LIKE '%' || #{query} || '%' OR a.mta_desc LIKE '%' || #{query} || '%')</if>
+		<if test="category != null">AND e.cd_nm = ANY(#{category,typeHandler=softGis.core.MyBatisListTypeHandler})</if>
+		<if test="cycle != null">AND c.cd_nm = ANY(#{cycle,typeHandler=softGis.core.MyBatisListTypeHandler})</if>
+		<if test="gather != null">AND d.cd_nm = ANY(#{gather,typeHandler=softGis.core.MyBatisListTypeHandler})</if>
+		<if test="source != null">AND a.mta_src = ANY(#{source,typeHandler=softGis.core.MyBatisListTypeHandler})</if>
+		<if test="usr_perm != null and usr_perm != 'SMGR'">
+			AND a.open_in_stat = 'Y'
+		</if>
+		GROUP BY a.mta_id
+			, a.mta_cd
+			, a.mta_nm
+			, a.mta_desc
+			, a.mta_src
+			, c.cd_nm
+			, d.cd_nm
+			, e.cd_nm
+		ORDER BY a.mta_id DESC;
+	</select>
+	
+	<select id="getMetadataSources" resultType="hashmap">
+	 	/* softGis.catalog.CatalogDAO.getMetadataSources */
+		SELECT
+			mta_src
+		FROM base.mta_data 
+		WHERE use_stat = 'Y'
+			AND open_out_stat = 'Y'
+		GROUP BY mta_src
+		ORDER BY mta_src;
+	</select>
+	
+	<select id="getData" resultType="hashmap">
+	 	/* softGis.catalog.CatalogDAO.getData */
+		<![CDATA[
+		SELECT 
+			a.mta_cd
+			, a.mta_nm
+			, b.data_tbl
+			, b.base_date
+			, b.use_stat
+			, CASE WHEN a.mta_fcly = 'DCL_YEAR' THEN EXTRACT(YEAR FROM b.base_date::date) || '년'
+					WHEN a.mta_fcly = 'DCL_HALF' THEN EXTRACT(YEAR FROM b.base_date::date) || '년 ' || (CASE WHEN EXTRACT(MONTH FROM b.base_date::date) <= 6  THEN '상' ELSE '하' END) || '반기'
+					WHEN a.mta_fcly = 'DCL_QUART' THEN TO_CHAR(b.base_date::date, 'YYYY년 Q분기')
+					WHEN a.mta_fcly = 'DCL_MONTH' THEN TO_CHAR(b.base_date::date, 'YYYY년 MM월')
+					WHEN a.mta_fcly = 'DCL_IRRE' THEN TO_CHAR(b.base_date::date, 'YYYY년 MM월 DD일')
+					END AS data_date_cvt			   
+		FROM base.mta_data a
+		LEFT JOIN base.mta_data_tbl b ON a.mta_cd = b.mta_cd
+		WHERE b.data_tbl =  #{data_tbl};
+		]]>
+	</select>
+	
+	<select id="getDataCatalogListColumns" resultType="hashmap">
+	 	/* softGis.catalog.CatalogDAO.getDataCatalogListColumns */
+		<![CDATA[
+		SELECT
+			a.col_nm_org
+			, COALESCE(b.col_nm_alias, COALESCE(a.col_nm_alias, a.col_nm_org)) AS col_nm_alias
+		FROM (
+			SELECT
+				PA.ATTNUM AS col_idx
+				, PA.ATTNAME AS col_nm_org
+				, PD.DESCRIPTION AS col_nm_alias
+			FROM PG_STAT_ALL_TABLES PS, PG_DESCRIPTION PD, PG_ATTRIBUTE PA
+			WHERE PS.RELID = PD.OBJOID
+				AND PD.OBJSUBID <> 0
+				AND PD.OBJOID = PA.ATTRELID
+				AND PD.OBJSUBID = PA.ATTNUM
+				AND PS.SCHEMANAME = 'data_catalog'
+				AND PS.RELNAME = #{data_tbl}
+		) a
+		LEFT JOIN base.mta_data_col b ON a.col_nm_org = b.col_nm_org
+		WHERE a.col_nm_org NOT IN('geom', 'wkt')
+			AND b.mta_cd = #{data_tbl}
+		ORDER BY a.col_idx ASC
+		]]>
+		<if test='column_limit != null'>
+			LIMIT #{column_limit};
+		</if>
+	</select>
+	
+	<select id="getDataCatalogRowCount" resultType="int">
+	 	/* softGis.catalog.CatalogDAO.getDataCatalogRowCount */
+	 	SELECT COUNT(*)
+		FROM data_catalog.${data_tbl};
+	</select>
+	
+	<select id="getDataCatalogChunkData" resultType="hashmap">
+	 	/* softGis.catalog.CatalogDAO.getDataCatalogChunkData */
+	 	SELECT
+		<foreach collection="columns" item="column" separator=", ">
+			<if test='!column.equals("geom")'>"${column}"</if>
+		</foreach>
+		FROM data_catalog."${data_tbl}"
+		LIMIT #{take} OFFSET #{skip};
+	</select>
+	
+</mapper>
+
+
+
